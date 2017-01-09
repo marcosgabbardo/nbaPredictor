@@ -1,0 +1,51 @@
+{
+"version": "1.0",
+"rowId": "id",
+"rowWeight": null,
+"targetAttributeName": "decisor",
+"dataFormat": "CSV",
+"dataFileContainsHeader": true,
+"attributes": [
+{
+"attributeName": "id",
+"attributeType": "CATEGORICAL"
+},
+{
+"attributeName": "homename",
+"attributeType": "CATEGORICAL"
+},
+{
+"attributeName": "awayname",
+"attributeType": "CATEGORICAL"
+},
+{
+"attributeName": "a_orb_avg1",
+"attributeType": "NUMERIC"
+},
+{
+"attributeName": "a_ortg_avg1",
+"attributeType": "NUMERIC"
+},
+{
+"attributeName": "a_orb_avg3",
+"attributeType": "NUMERIC"
+},
+{
+"attributeName": "a_ortg_avg3",
+"attributeType": "NUMERIC"
+},
+{
+"attributeName": "a_orb_avg5",
+"attributeType": "NUMERIC"
+},
+{
+"attributeName": "a_ortg_avg5",
+"attributeType": "NUMERIC"
+},
+{
+"attributeName": "decisor",
+"attributeType": "CATEGORICAL"
+}
+],
+"excludedAttributeNames": []
+}

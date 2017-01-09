@@ -1,0 +1,7 @@
+{
+  "groups" : {
+    "NUMERIC_VARS_QB_200" : "group('a_ortg_avg5','a_ortg_avg3','a_ortg_avg1','a_orb_avg5','a_orb_avg1','a_orb_avg3')"
+  },
+  "assignments" : { },
+  "outputs" : [ "ALL_CATEGORICAL", "quantile_bin(NUMERIC_VARS_QB_200,200)" ]
+}
