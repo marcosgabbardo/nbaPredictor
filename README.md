@@ -1,4 +1,4 @@
-# nbaPredictor
+# nbaPredictor (Python scraper)
 Python scraping and repository for nba data and statistics based on basketball reference. 
 
 DB folder contain all scripts from a MYSQL Dump to use as structure for scraped data.
