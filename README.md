@@ -1,5 +1,5 @@
-# nbaPredictor (Python scraper)
-Python scraping and repository for nba data and statistics based on basketball reference. This code is under havely developemnt.
+# nbaPredictor (Python scraper http://www.basketball-reference.com/leagues/NBA_2017_games.html)
+Python scraping and repository for nba data and statistics based on basketball reference (http://www.basketball-reference.com/leagues/NBA_2017_games.html). This code is under havely developemnt.
 
 <b>db folder: contain all scripts from a MYSQL Dump to use as structure for scraped data.</b>
 * db_tables.sql - is all structure you will need to put scraped data.
