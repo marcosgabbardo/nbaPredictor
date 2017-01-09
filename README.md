@@ -1,3 +1,5 @@
+# nbaPredictor
+
 <b> nbaPredictor (Python scraper http://www.basketball-reference.com/leagues/NBA_2017_games.html) </b>
 
 Python scraping and repository for nba data and statistics based on basketball reference (http://www.basketball-reference.com/leagues/NBA_2017_games.html). This code is under havely developemnt.
