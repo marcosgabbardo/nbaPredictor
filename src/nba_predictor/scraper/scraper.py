@@ -7,6 +7,7 @@ from typing import Any, Dict, List, Optional
 import requests
 from bs4 import BeautifulSoup
 from requests.adapters import HTTPAdapter
+from sqlalchemy import func
 from urllib3.util.retry import Retry
 
 from nba_predictor.core.config import get_settings
@@ -129,7 +130,7 @@ class BasketballReferenceScraper:
             deleted = (
                 db.query(Game)
                 .filter(Game.season == season)
-                .filter(db.func.month(Game.date) == month_num)
+                .filter(func.month(Game.date) == month_num)
                 .delete(synchronize_session=False)
             )
             logger.info("Deleted existing games", count=deleted)
