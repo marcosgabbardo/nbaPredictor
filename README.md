@@ -1,95 +1,570 @@
-# nbaPredictor
+# 🏀 NBA Predictor 2.0
 
-<b> nbaPredictor (Python scraper http://www.basketball-reference.com/leagues/NBA_2017_games.html) </b>
+> **AI-powered NBA game prediction system** - Completely revitalized with modern Python, SQLAlchemy ORM, and Claude AI integration
 
-Python scraping and repository for nba data and statistics based on basketball reference (http://www.basketball-reference.com/leagues/NBA_2017_games.html). This code is under havely developemnt.
+[![Python 3.11+](https://img.shields.io/badge/python-3.11+-blue.svg)](https://www.python.org/downloads/)
+[![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
+[![Code style: black](https://img.shields.io/badge/code%20style-black-000000.svg)](https://github.com/psf/black)
 
-<b>db folder: contain all scripts from a MYSQL Dump to use as structure for scraped data.</b>
-* db_tables.sql - is all structure you will need to put scraped data.
-* nba_teams_data.sql - is a table with all nba team and abrev names.
+## 🌟 What's New in Version 2.0
 
-<b> lib folder: contain all source code for scrap and save data </b>
-* nba_game.py - core script to scrap and save basic and analytic data from website.
-* nba_statistics.py - core script to calculate some statistical indicators like averages and sums.
-* nba_csvgenerator.py - under construcion (generate csv files for amazon machine learning).
+This is a **complete revitalization** of the NBA Predictor project, rebuilt from the ground up with modern technologies and best practices:
 
-<b> TEST </b>
-* test_nba_server.py - some code to base your tests and understanding of nbaPredictor.
-* amazonML.py - under construction, to use to comunicate with AWS and generate predictions.
+- ✅ **Migrated from Python 2.7 to Python 3.11+**
+- ✅ **SQLAlchemy ORM** - No more raw SQL, proper database abstraction
+- ✅ **Structured Logging** - JSON logs with full traceability using structlog
+- ✅ **Claude AI Integration** - Replaced deprecated AWS ML with state-of-the-art AI
+- ✅ **Robust Error Handling** - Retry logic, timeouts, comprehensive exception handling
+- ✅ **Modern Configuration** - Environment variables with Pydantic validation
+- ✅ **Type Hints** - Full type annotations for better IDE support
+- ✅ **Modular Architecture** - Clean separation of concerns
+- ✅ **CLI Interface** - User-friendly command-line interface
 
-<b> Data Structure </b>
+## 📋 Table of Contents
 
-* NBA_TEAM: table with all nba team names and abreviations.
-* NBA_GAME: analytic game table with scores and game statistics.
-* NBA_PLAYBYPLAY: analytic game table with play by play data.
-* NBA_TEAM_HISTORY: table with processed data and statistics, turn by turn (day by day)... this table accumulates all data from previous games until last game and create a sintetic data information for the next game.
-* NBA_PONDERATION: under construction, will be used for user guesses.
-* ODD: under construction, will save all handicaps and odds from some sportbet websites to use in comparation with your data.
+- [Features](#-features)
+- [Architecture](#-architecture)
+- [Installation](#-installation)
+- [Configuration](#-configuration)
+- [Usage](#-usage)
+- [Project Structure](#-project-structure)
+- [How It Works](#-how-it-works)
+- [Development](#-development)
+- [Contributing](#-contributing)
+- [License](#-license)
 
-<b> How to use </b>
- - With nbaPredictor you can test your strategies for handicaping. 
+## 🚀 Features
 
-Ex:
-1. First import all data from last 3 season.
-2. Create a sql to select and create a handicap prevision indicator, like this one:
+### Data Collection
+- **Automated Web Scraping** from Basketball Reference
+- **Game Data**: Scores, quarter-by-quarter breakdowns, basic stats
+- **Advanced Metrics**: Pace, eFG%, TOV%, ORB%, FT/FGA, ORtg
+- **Play-by-Play Data**: Detailed game progression
+- **Retry Logic**: Automatic retry on failures with exponential backoff
+- **Rate Limiting**: Respectful scraping with delays
 
-```sql
-SELECT 
-    nba_game.id2,
-    nba_game.season,
-    nba_game.date,
-    home.team_name home_team_name,
-    away.team_name away_team_name,
-    ROUND(((((away.efg_avg - home.efg_avg) * 100 * 1.5 + 
-    (away.ftfga_avg - home.ftfga_avg) * 100 * 0.3 + 
-    (away.tov_avg - home.tov_avg) * - 1.5 + 
-    (away.orb_avg - home.orb_avg) * 0.5) * 1.16 + 
-    (away.day_diff - home.day_diff) * 0.5 + 
-    (away.win_streak - home.win_streak) * - 0.1 + 
-    (away.loss_streak - home.loss_streak) * 0.15 + 
-    (away.win - home.win) * 0.15 + 
-    (away.pointavg - home.pointavg) * - 0.14 + 
-    (away.pointavg10 - home.pointavg10) * - 0.02 + 
-    (away.last5 - home.last5) * 0.15 + 
-    (away.last3 - home.last3) * - 0.1 + 
-    (away.last10 - home.last10) * 0.15 + 
-    (away.last1 - home.last1) * - 0.6 + 
-    (away.efg_avg1 - home.efg_avg1) * 100 * - 0.02 + 
-    (away.tov_avg1 - home.tov_avg1) * 0.13 + 
-    (away.orb_avg1 - home.orb_avg1) * - 0.01 + 
-    (away.ftfga_avg1 - home.ftfga_avg1) * - 0.4 + 
-    (away.pointavg1a - home.pointavg1a) * - 0.04 + 
-    (away.ortg_avg3 - home.ortg_avg3) * - 0.03 + 
-    (away.ortg_avg5 - home.ortg_avg5) * - 0.03 + 
-    (away.ortg_avg10 - home.ortg_avg10) * - 0.02 + 
-	(away.ortg_avg - home.ortg_avg) * + 0.05  
-	)) + 2,
-            0) predictor,
-  --  odd.handicap,        
-  --  nba_ponderation.value ponderation,
-    (home.pointavga - home.pointavg) media_diff_pontos,
-    (nba_game.away_point - nba_game.home_point) decisor
-FROM
-    nba_game, -- left outer join odd on (odd.id = nba_game.id2),
-    nba_team_history home,
-    nba_team_history away
-   -- ,nba_ponderation
-WHERE
-    nba_game.home_name = home.team_name
-        AND nba_game.away_name = away.team_name
-        AND home.date = nba_game.date
-        AND away.date = nba_game.date
-        AND nba_game.season IN (2017)
-        AND nba_game.date = '2017-01-07'
-        AND home.efg_avg10 <> 0
-      --  AND nba_ponderation.date = nba_game.date
-      --  AND nba_ponderation.home_name = home.team_name
-      --  AND nba_ponderation.away_name = away.team_name
-    --  AND nba_ponderation.value > 60
-ORDER BY nba_game.date
+### Statistical Analysis
+- **Rolling Averages**: Calculate team performance over 1, 3, 5, and 10 game windows
+- **Win/Loss Streaks**: Track team momentum
+- **Advanced Analytics**: Comprehensive offensive and defensive metrics
+- **Historical Tracking**: Time-series data for trend analysis
+- **Quarter-Level Analysis**: Performance breakdown by quarter
+
+### AI-Powered Predictions
+- **Claude AI Integration**: Leverages Anthropic's Claude Sonnet for predictions
+- **Context-Aware Analysis**: Considers recent form, advanced metrics, rest factors
+- **Confidence Scores**: Get probability estimates for predictions
+- **Detailed Reasoning**: Understand why the AI made its prediction
+- **Batch Predictions**: Predict multiple games at once
+- **Accuracy Tracking**: Analyze historical prediction performance
+
+## 🏗️ Architecture
+
+```
+┌─────────────────────────────────────────────────────────────┐
+│                         CLI Interface                        │
+│                    (User Commands)                           │
+└────────────────┬────────────────────────────┬────────────────┘
+                 │                            │
+        ┌────────▼─────────┐       ┌─────────▼────────┐
+        │     Scraper      │       │    Predictor     │
+        │  (Data Import)   │       │  (Claude AI)     │
+        └────────┬─────────┘       └─────────┬────────┘
+                 │                            │
+                 │         ┌──────────────────┘
+                 │         │
+        ┌────────▼─────────▼─────┐
+        │   Statistics Engine    │
+        │  (Team Performance)    │
+        └────────┬───────────────┘
+                 │
+        ┌────────▼───────────────┐
+        │   SQLAlchemy ORM       │
+        │   (Data Models)        │
+        └────────┬───────────────┘
+                 │
+        ┌────────▼───────────────┐
+        │    MySQL Database      │
+        │  (Historical Data)     │
+        └────────────────────────┘
 ```
 
-Note that you can create your own indicator and compare in a simple sql with decisor (real result of handicap), and evaluate with a standard deviation analisys, remember, smaller standard deviation between decisor and prediction better is your indicator. (handicap predictor by sportbet houses have am average standard deviation of 12 points in handicap full-time scores)
+### Core Components
 
+#### 1. **Scraper Module** (`src/nba_predictor/scraper/`)
+- Fetches data from Basketball Reference
+- Robust error handling and retry logic
+- Respects rate limits
+- Parses HTML with BeautifulSoup
 
-OBS: This souces is only to learning python programming language and a lot of improvements will be necessary.
+#### 2. **Models Module** (`src/nba_predictor/models/`)
+- SQLAlchemy ORM models
+- Type-safe database operations
+- Automatic schema migration support
+- Context managers for database sessions
+
+#### 3. **Statistics Module** (`src/nba_predictor/utils/`)
+- Calculates rolling averages
+- Tracks win/loss streaks
+- Computes advanced metrics
+- Generates team historical data
+
+#### 4. **Prediction Module** (`src/nba_predictor/prediction/`)
+- Claude AI integration
+- Context preparation for AI analysis
+- Result parsing and validation
+- Accuracy tracking
+
+#### 5. **Core Module** (`src/nba_predictor/core/`)
+- Configuration management (Pydantic)
+- Structured logging (structlog)
+- Application settings
+- Environment variable handling
+
+## 📦 Installation
+
+### Prerequisites
+
+- **Python 3.11+**
+- **MySQL 5.7+** or **MariaDB 10.3+**
+- **Anthropic API Key** (for predictions)
+
+### Step 1: Clone the Repository
+
+```bash
+git clone https://github.com/marcosgabbardo/nbaPredictor.git
+cd nbaPredictor
+```
+
+### Step 2: Create Virtual Environment
+
+```bash
+python -m venv venv
+source venv/bin/activate  # On Windows: venv\Scripts\activate
+```
+
+### Step 3: Install Dependencies
+
+```bash
+pip install -r requirements.txt
+```
+
+### Step 4: Set Up Database
+
+```bash
+# Create MySQL database
+mysql -u root -p
+CREATE DATABASE sportbet CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci;
+EXIT;
+
+# Import team data
+mysql -u root -p sportbet < db/nba_teams_data.sql
+```
+
+### Step 5: Configure Environment
+
+```bash
+# Copy example environment file
+cp .env.example .env
+
+# Edit .env with your settings
+nano .env  # or use your preferred editor
+```
+
+Required environment variables:
+- `ANTHROPIC_API_KEY`: Your Anthropic API key
+- `DB_HOST`, `DB_PORT`, `DB_USER`, `DB_PASSWORD`, `DB_NAME`: Database credentials
+
+### Step 6: Initialize Database
+
+```bash
+python -m nba_predictor.cli init
+```
+
+## ⚙️ Configuration
+
+Configuration is managed through environment variables. See `.env.example` for all available options:
+
+```env
+# Database
+DB_HOST=localhost
+DB_PORT=3306
+DB_USER=root
+DB_PASSWORD=your_password
+DB_NAME=sportbet
+
+# Scraper
+SCRAPER_TIMEOUT=30
+SCRAPER_RETRY_ATTEMPTS=3
+
+# Anthropic Claude
+ANTHROPIC_API_KEY=your_api_key_here
+
+# Logging
+LOG_LEVEL=INFO
+LOG_FORMAT=json
+```
+
+## 🎯 Usage
+
+### Command-Line Interface
+
+The CLI provides all functionality through simple commands:
+
+```bash
+# Show help
+python -m nba_predictor.cli --help
+```
+
+### 1. Scrape Game Data
+
+```bash
+# Scrape games for a specific month
+python -m nba_predictor.cli scrape-games 2024 january
+
+# Scrape play-by-play data for a date
+python -m nba_predictor.cli scrape-pbp 2024-01-15
+```
+
+### 2. Calculate Statistics
+
+```bash
+# Generate team statistics for a season
+python -m nba_predictor.cli calculate-stats 2024
+```
+
+### 3. Make Predictions
+
+```bash
+# Predict a specific game
+python -m nba_predictor.cli predict "Los Angeles Lakers" "Boston Celtics" 2024-01-15
+
+# Predict all games for a date
+python -m nba_predictor.cli predict-date 2024-01-15
+```
+
+Example output:
+```
+🏀 Predicting: Los Angeles Lakers vs Boston Celtics on 2024-01-15
+
+🏆 Predicted Winner: Los Angeles Lakers
+📊 Confidence: 68%
+📈 Predicted Score: 112 - 108
+
+🔑 Key Factors:
+   • Lakers on 3-game win streak with strong offensive rating
+   • Home court advantage (Lakers playing at home)
+   • Celtics playing second game of back-to-back
+
+📝 Analysis:
+   The Lakers enter this matchup with momentum, having won their last 3 games
+   with an average margin of 8.5 points. Their offensive rating of 118.2 over
+   the last 5 games is significantly higher than Boston's defensive rating...
+```
+
+### 4. Analyze Accuracy
+
+```bash
+# Check prediction accuracy for a season
+python -m nba_predictor.cli analyze-accuracy 2024
+```
+
+### Typical Workflow
+
+```bash
+# 1. Scrape data for the season
+for month in october november december january february march april may june; do
+    python -m nba_predictor.cli scrape-games 2024 $month
+done
+
+# 2. Calculate statistics
+python -m nba_predictor.cli calculate-stats 2024
+
+# 3. Make predictions for upcoming games
+python -m nba_predictor.cli predict-date 2024-01-20
+
+# 4. Analyze accuracy
+python -m nba_predictor.cli analyze-accuracy 2024
+```
+
+## 📁 Project Structure
+
+```
+nbaPredictor/
+├── src/nba_predictor/          # Main package
+│   ├── core/                   # Core functionality
+│   │   ├── config.py          # Configuration management
+│   │   └── logger.py          # Structured logging
+│   ├── models/                 # Database models
+│   │   ├── database.py        # SQLAlchemy setup
+│   │   ├── game.py            # Game models
+│   │   └── team.py            # Team models
+│   ├── scraper/                # Web scraping
+│   │   └── scraper.py         # Basketball Reference scraper
+│   ├── prediction/             # AI predictions
+│   │   └── claude_predictor.py # Claude AI integration
+│   ├── utils/                  # Utilities
+│   │   └── statistics.py      # Statistical calculations
+│   ├── cli.py                  # Command-line interface
+│   └── __main__.py            # Entry point
+├── tests/                      # Test suite
+├── db/                         # Database schemas
+│   ├── db_tables.sql          # Table definitions
+│   └── nba_teams_data.sql     # Team reference data
+├── logs/                       # Application logs
+├── data/                       # Data files
+├── requirements.txt            # Dependencies
+├── pyproject.toml             # Project configuration
+├── .env.example               # Environment template
+└── README.md                  # This file
+```
+
+## 🔍 How It Works
+
+### 1. Data Collection
+
+The scraper fetches data from [Basketball Reference](https://www.basketball-reference.com/):
+
+```python
+from nba_predictor.scraper import BasketballReferenceScraper
+
+scraper = BasketballReferenceScraper()
+scraper.import_games("2024", "january")
+```
+
+Data collected includes:
+- Game scores (total and by quarter)
+- Four Factors: Pace, eFG%, TOV%, ORB%, FT/FGA, ORtg
+- Play-by-play events with timestamps
+
+### 2. Statistical Analysis
+
+The statistics engine calculates rolling metrics:
+
+```python
+from nba_predictor.utils.statistics import StatisticsCalculator
+
+calculator = StatisticsCalculator()
+calculator.generate_team_statistics("2024")
+calculator.calculate_streaks("2024")
+```
+
+Metrics include:
+- Win/loss records over different windows (1, 3, 5, 10 games)
+- Point averages (offensive and defensive)
+- Advanced efficiency metrics
+- Momentum indicators (streaks)
+- Rest factors (days between games)
+
+### 3. AI-Powered Predictions
+
+Claude AI analyzes team statistics and makes predictions:
+
+```python
+from nba_predictor.prediction import ClaudePredictor
+
+predictor = ClaudePredictor()
+prediction = predictor.predict_game("Lakers", "Celtics", date(2024, 1, 15))
+```
+
+The AI considers:
+- **Recent Form**: Last 1, 3, 5, 10 games performance
+- **Offensive Efficiency**: Points scored, shooting percentages
+- **Defensive Efficiency**: Points allowed, opponent shooting
+- **Advanced Metrics**: Pace, turnover rates, rebounding
+- **Momentum**: Win/loss streaks
+- **Rest**: Days since last game
+- **Home Court**: Advantage factor
+
+### 4. Data Models
+
+#### Game Model
+```python
+class Game(Base):
+    date: date
+    home_name: str
+    away_name: str
+    home_point: int
+    away_point: int
+    # ... advanced stats
+```
+
+#### Team History Model
+```python
+class TeamHistory(Base):
+    team_name: str
+    date: date
+    last1, last3, last5, last10: int  # Wins in windows
+    pointavg1, pointavg3, ...: Decimal  # Scoring averages
+    pace_avg, efg_avg, ...: Decimal  # Advanced metrics
+    win_streak, loss_streak: int  # Momentum
+```
+
+## 🛠️ Development
+
+### Code Quality
+
+The project uses modern Python tooling:
+
+```bash
+# Format code
+black src/ tests/
+
+# Lint code
+ruff check src/ tests/
+
+# Type checking
+mypy src/
+
+# Run tests
+pytest
+```
+
+### Adding New Features
+
+1. **New Scraper**: Extend `BasketballReferenceScraper`
+2. **New Metric**: Add to `StatisticsCalculator`
+3. **New Model**: Create in `src/nba_predictor/models/`
+4. **New CLI Command**: Add to `src/nba_predictor/cli.py`
+
+### Database Migrations
+
+For schema changes, use Alembic:
+
+```bash
+# Generate migration
+alembic revision --autogenerate -m "Description"
+
+# Apply migration
+alembic upgrade head
+```
+
+## 📊 Database Schema
+
+### Tables
+
+- **`nba_team`**: Team reference data (30 NBA teams)
+- **`nba_game`**: Game results and statistics
+- **`nba_playbyplay`**: Detailed play-by-play events
+- **`nba_team_history`**: Team performance time series (60+ metrics per date)
+
+### Key Relationships
+
+```
+Team (1) ─────── (*) TeamHistory
+            ↓
+Game (1) ─────── (*) PlayByPlay
+```
+
+## 🔒 Security
+
+- **Environment Variables**: Sensitive data never hardcoded
+- **SQL Injection Protection**: ORM prevents SQL injection
+- **API Key Management**: Secure credential storage
+- **Rate Limiting**: Prevents overwhelming external services
+
+## 🐛 Troubleshooting
+
+### Common Issues
+
+**Database Connection Error**
+```bash
+# Check MySQL is running
+sudo systemctl status mysql
+
+# Verify credentials in .env
+mysql -u $DB_USER -p$DB_PASSWORD -h $DB_HOST
+```
+
+**Import Errors**
+```bash
+# Ensure you're in the virtual environment
+source venv/bin/activate
+
+# Reinstall dependencies
+pip install -r requirements.txt
+```
+
+**Scraping Failures**
+```bash
+# Check internet connection
+ping www.basketball-reference.com
+
+# Increase timeout in .env
+SCRAPER_TIMEOUT=60
+```
+
+**API Errors**
+```bash
+# Verify API key
+echo $ANTHROPIC_API_KEY
+
+# Check API quota
+# Visit: https://console.anthropic.com/
+```
+
+## 📈 Performance
+
+- **Scraping**: ~2-3 seconds per game
+- **Statistics**: ~1 minute for full season (30 teams)
+- **Prediction**: ~2-5 seconds per game (Claude API call)
+- **Database**: Optimized indexes for fast queries
+
+## 🤝 Contributing
+
+Contributions are welcome! Please:
+
+1. Fork the repository
+2. Create a feature branch (`git checkout -b feature/amazing-feature`)
+3. Commit your changes (`git commit -m 'Add amazing feature'`)
+4. Push to the branch (`git push origin feature/amazing-feature`)
+5. Open a Pull Request
+
+### Development Setup
+
+```bash
+# Install development dependencies
+pip install -r requirements.txt
+
+# Install pre-commit hooks
+pre-commit install
+
+# Run tests
+pytest
+
+# Check coverage
+pytest --cov=nba_predictor --cov-report=html
+```
+
+## 📝 License
+
+This project is licensed under the MIT License - see the [LICENSE](LICENSE) file for details.
+
+## 🙏 Acknowledgments
+
+- **Basketball Reference** for providing comprehensive NBA data
+- **Anthropic** for the Claude AI API
+- **SQLAlchemy** for excellent ORM capabilities
+- **structlog** for structured logging
+
+## 📞 Support
+
+- **Issues**: [GitHub Issues](https://github.com/marcosgabbardo/nbaPredictor/issues)
+- **Discussions**: [GitHub Discussions](https://github.com/marcosgabbardo/nbaPredictor/discussions)
+
+## 🗺️ Roadmap
+
+- [ ] Web dashboard for visualizations
+- [ ] Real-time game tracking
+- [ ] Player-level statistics
+- [ ] Multi-model ensemble predictions
+- [ ] Historical backtest framework
+- [ ] REST API for predictions
+- [ ] Docker containerization
+- [ ] Automated daily predictions
+
+---
+
+**Made with ❤️ and 🏀 by the NBA Predictor Team**
+
+*Revitalized and modernized in 2024*
