@@ -1,9 +1,10 @@
 """Team-related database models."""
 
 from datetime import date
+from decimal import Decimal
 from typing import Optional
 
-from sqlalchemy import Date, Decimal, Integer, String
+from sqlalchemy import Date, Integer, Numeric, String
 from sqlalchemy.orm import Mapped, mapped_column
 
 from nba_predictor.models.database import Base
@@ -44,74 +45,74 @@ class TeamHistory(Base):
     loss_streak: Mapped[Optional[int]] = mapped_column(Integer)
 
     # Point averages
-    pointavg1: Mapped[Optional[Decimal]] = mapped_column(Decimal(10, 2))
-    pointavg3: Mapped[Optional[Decimal]] = mapped_column(Decimal(10, 2))
-    pointavg5: Mapped[Optional[Decimal]] = mapped_column(Decimal(10, 2))
-    pointavg10: Mapped[Optional[Decimal]] = mapped_column(Decimal(10, 2))
-    pointavg: Mapped[Optional[Decimal]] = mapped_column(Decimal(10, 2))
+    pointavg1: Mapped[Optional[Decimal]] = mapped_column(Numeric(10, 2))
+    pointavg3: Mapped[Optional[Decimal]] = mapped_column(Numeric(10, 2))
+    pointavg5: Mapped[Optional[Decimal]] = mapped_column(Numeric(10, 2))
+    pointavg10: Mapped[Optional[Decimal]] = mapped_column(Numeric(10, 2))
+    pointavg: Mapped[Optional[Decimal]] = mapped_column(Numeric(10, 2))
 
     # Point averages against
-    pointavg1a: Mapped[Optional[Decimal]] = mapped_column(Decimal(10, 2))
-    pointavg3a: Mapped[Optional[Decimal]] = mapped_column(Decimal(10, 2))
-    pointavg5a: Mapped[Optional[Decimal]] = mapped_column(Decimal(10, 2))
-    pointavg10a: Mapped[Optional[Decimal]] = mapped_column(Decimal(10, 2))
-    pointavga: Mapped[Optional[Decimal]] = mapped_column(Decimal(10, 2))
+    pointavg1a: Mapped[Optional[Decimal]] = mapped_column(Numeric(10, 2))
+    pointavg3a: Mapped[Optional[Decimal]] = mapped_column(Numeric(10, 2))
+    pointavg5a: Mapped[Optional[Decimal]] = mapped_column(Numeric(10, 2))
+    pointavg10a: Mapped[Optional[Decimal]] = mapped_column(Numeric(10, 2))
+    pointavga: Mapped[Optional[Decimal]] = mapped_column(Numeric(10, 2))
 
     # Advanced metrics - Total averages
-    pace_avg: Mapped[Optional[Decimal]] = mapped_column(Decimal(10, 2))
-    efg_avg: Mapped[Optional[Decimal]] = mapped_column(Decimal(10, 2))
-    tov_avg: Mapped[Optional[Decimal]] = mapped_column(Decimal(10, 2))
-    orb_avg: Mapped[Optional[Decimal]] = mapped_column(Decimal(10, 2))
-    ftfga_avg: Mapped[Optional[Decimal]] = mapped_column(Decimal(10, 2))
-    ortg_avg: Mapped[Optional[Decimal]] = mapped_column(Decimal(10, 2))
+    pace_avg: Mapped[Optional[Decimal]] = mapped_column(Numeric(10, 2))
+    efg_avg: Mapped[Optional[Decimal]] = mapped_column(Numeric(10, 2))
+    tov_avg: Mapped[Optional[Decimal]] = mapped_column(Numeric(10, 2))
+    orb_avg: Mapped[Optional[Decimal]] = mapped_column(Numeric(10, 2))
+    ftfga_avg: Mapped[Optional[Decimal]] = mapped_column(Numeric(10, 2))
+    ortg_avg: Mapped[Optional[Decimal]] = mapped_column(Numeric(10, 2))
 
     # Advanced metrics - Last 1 game
-    pace_avg1: Mapped[Optional[Decimal]] = mapped_column(Decimal(10, 2))
-    efg_avg1: Mapped[Optional[Decimal]] = mapped_column(Decimal(10, 2))
-    tov_avg1: Mapped[Optional[Decimal]] = mapped_column(Decimal(10, 2))
-    orb_avg1: Mapped[Optional[Decimal]] = mapped_column(Decimal(10, 2))
-    ftfga_avg1: Mapped[Optional[Decimal]] = mapped_column(Decimal(10, 2))
-    ortg_avg1: Mapped[Optional[Decimal]] = mapped_column(Decimal(10, 2))
+    pace_avg1: Mapped[Optional[Decimal]] = mapped_column(Numeric(10, 2))
+    efg_avg1: Mapped[Optional[Decimal]] = mapped_column(Numeric(10, 2))
+    tov_avg1: Mapped[Optional[Decimal]] = mapped_column(Numeric(10, 2))
+    orb_avg1: Mapped[Optional[Decimal]] = mapped_column(Numeric(10, 2))
+    ftfga_avg1: Mapped[Optional[Decimal]] = mapped_column(Numeric(10, 2))
+    ortg_avg1: Mapped[Optional[Decimal]] = mapped_column(Numeric(10, 2))
 
     # Advanced metrics - Last 3 games
-    pace_avg3: Mapped[Optional[Decimal]] = mapped_column(Decimal(10, 2))
-    efg_avg3: Mapped[Optional[Decimal]] = mapped_column(Decimal(10, 2))
-    tov_avg3: Mapped[Optional[Decimal]] = mapped_column(Decimal(10, 2))
-    orb_avg3: Mapped[Optional[Decimal]] = mapped_column(Decimal(10, 2))
-    ftfga_avg3: Mapped[Optional[Decimal]] = mapped_column(Decimal(10, 2))
-    ortg_avg3: Mapped[Optional[Decimal]] = mapped_column(Decimal(10, 2))
+    pace_avg3: Mapped[Optional[Decimal]] = mapped_column(Numeric(10, 2))
+    efg_avg3: Mapped[Optional[Decimal]] = mapped_column(Numeric(10, 2))
+    tov_avg3: Mapped[Optional[Decimal]] = mapped_column(Numeric(10, 2))
+    orb_avg3: Mapped[Optional[Decimal]] = mapped_column(Numeric(10, 2))
+    ftfga_avg3: Mapped[Optional[Decimal]] = mapped_column(Numeric(10, 2))
+    ortg_avg3: Mapped[Optional[Decimal]] = mapped_column(Numeric(10, 2))
 
     # Advanced metrics - Last 5 games
-    pace_avg5: Mapped[Optional[Decimal]] = mapped_column(Decimal(10, 2))
-    efg_avg5: Mapped[Optional[Decimal]] = mapped_column(Decimal(10, 2))
-    tov_avg5: Mapped[Optional[Decimal]] = mapped_column(Decimal(10, 2))
-    orb_avg5: Mapped[Optional[Decimal]] = mapped_column(Decimal(10, 2))
-    ftfga_avg5: Mapped[Optional[Decimal]] = mapped_column(Decimal(10, 2))
-    ortg_avg5: Mapped[Optional[Decimal]] = mapped_column(Decimal(10, 2))
+    pace_avg5: Mapped[Optional[Decimal]] = mapped_column(Numeric(10, 2))
+    efg_avg5: Mapped[Optional[Decimal]] = mapped_column(Numeric(10, 2))
+    tov_avg5: Mapped[Optional[Decimal]] = mapped_column(Numeric(10, 2))
+    orb_avg5: Mapped[Optional[Decimal]] = mapped_column(Numeric(10, 2))
+    ftfga_avg5: Mapped[Optional[Decimal]] = mapped_column(Numeric(10, 2))
+    ortg_avg5: Mapped[Optional[Decimal]] = mapped_column(Numeric(10, 2))
 
     # Advanced metrics - Last 10 games
-    pace_avg10: Mapped[Optional[Decimal]] = mapped_column(Decimal(10, 2))
-    efg_avg10: Mapped[Optional[Decimal]] = mapped_column(Decimal(10, 2))
-    tov_avg10: Mapped[Optional[Decimal]] = mapped_column(Decimal(10, 2))
-    orb_avg10: Mapped[Optional[Decimal]] = mapped_column(Decimal(10, 2))
-    ftfga_avg10: Mapped[Optional[Decimal]] = mapped_column(Decimal(10, 2))
-    ortg_avg10: Mapped[Optional[Decimal]] = mapped_column(Decimal(10, 2))
+    pace_avg10: Mapped[Optional[Decimal]] = mapped_column(Numeric(10, 2))
+    efg_avg10: Mapped[Optional[Decimal]] = mapped_column(Numeric(10, 2))
+    tov_avg10: Mapped[Optional[Decimal]] = mapped_column(Numeric(10, 2))
+    orb_avg10: Mapped[Optional[Decimal]] = mapped_column(Numeric(10, 2))
+    ftfga_avg10: Mapped[Optional[Decimal]] = mapped_column(Numeric(10, 2))
+    ortg_avg10: Mapped[Optional[Decimal]] = mapped_column(Numeric(10, 2))
 
     # Quarter averages
-    p1_avg: Mapped[Optional[Decimal]] = mapped_column(Decimal(10, 3))
-    p2_avg: Mapped[Optional[Decimal]] = mapped_column(Decimal(10, 3))
-    p3_avg: Mapped[Optional[Decimal]] = mapped_column(Decimal(10, 3))
-    p4_avg: Mapped[Optional[Decimal]] = mapped_column(Decimal(10, 3))
+    p1_avg: Mapped[Optional[Decimal]] = mapped_column(Numeric(10, 3))
+    p2_avg: Mapped[Optional[Decimal]] = mapped_column(Numeric(10, 3))
+    p3_avg: Mapped[Optional[Decimal]] = mapped_column(Numeric(10, 3))
+    p4_avg: Mapped[Optional[Decimal]] = mapped_column(Numeric(10, 3))
 
-    p1_avg5: Mapped[Optional[Decimal]] = mapped_column(Decimal(10, 3))
-    p2_avg5: Mapped[Optional[Decimal]] = mapped_column(Decimal(10, 3))
-    p3_avg5: Mapped[Optional[Decimal]] = mapped_column(Decimal(10, 3))
-    p4_avg5: Mapped[Optional[Decimal]] = mapped_column(Decimal(10, 3))
+    p1_avg5: Mapped[Optional[Decimal]] = mapped_column(Numeric(10, 3))
+    p2_avg5: Mapped[Optional[Decimal]] = mapped_column(Numeric(10, 3))
+    p3_avg5: Mapped[Optional[Decimal]] = mapped_column(Numeric(10, 3))
+    p4_avg5: Mapped[Optional[Decimal]] = mapped_column(Numeric(10, 3))
 
-    p1_avg10: Mapped[Optional[Decimal]] = mapped_column(Decimal(10, 3))
-    p2_avg10: Mapped[Optional[Decimal]] = mapped_column(Decimal(10, 3))
-    p3_avg10: Mapped[Optional[Decimal]] = mapped_column(Decimal(10, 3))
-    p4_avg10: Mapped[Optional[Decimal]] = mapped_column(Decimal(10, 3))
+    p1_avg10: Mapped[Optional[Decimal]] = mapped_column(Numeric(10, 3))
+    p2_avg10: Mapped[Optional[Decimal]] = mapped_column(Numeric(10, 3))
+    p3_avg10: Mapped[Optional[Decimal]] = mapped_column(Numeric(10, 3))
+    p4_avg10: Mapped[Optional[Decimal]] = mapped_column(Numeric(10, 3))
 
     # Other
     overtime: Mapped[Optional[str]] = mapped_column(String(3))
