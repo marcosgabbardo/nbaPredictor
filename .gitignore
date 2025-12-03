@@ -57,11 +57,11 @@ data/*.csv
 data/*.json
 !data/.gitkeep
 
-# ML models
-models/
+# ML model files (saved models, not source code)
 *.pkl
 *.h5
 *.pt
+/models/
 
 # Jupyter
 .ipynb_checkpoints/
