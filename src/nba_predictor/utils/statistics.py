@@ -23,6 +23,9 @@ class StatisticsCalculator:
     def generate_team_statistics(self, season: str) -> int:
         """Generate team statistics for a season.
 
+        Creates records for ALL teams for EVERY game date in the season,
+        allowing simple date-based queries to compare all teams.
+
         Args:
             season: NBA season year
 
@@ -36,22 +39,33 @@ class StatisticsCalculator:
             deleted = db.query(TeamHistory).filter(TeamHistory.season == season).delete()
             logger.info("Deleted existing statistics", count=deleted)
 
+            # Get all unique game dates in the season
+            game_dates = (
+                db.query(Game.date)
+                .distinct()
+                .filter(Game.season == season, Game.home_point.isnot(None))
+                .order_by(Game.date)
+                .all()
+            )
+
+            if not game_dates:
+                logger.warning("No games found for season", season=season)
+                return 0
+
             # Get all teams
             teams = db.query(Game.home_name).distinct().filter(Game.season == season).all()
 
             records_created = 0
 
-            for (team_name,) in teams:
-                logger.debug("Processing team", team=team_name)
+            # For each date, create records for ALL teams
+            for (game_date,) in game_dates:
+                logger.debug("Processing date", date=game_date, teams=len(teams))
 
-                # Get all games for this team
-                games = self._get_team_games(db, team_name, season)
-
-                for game in games:
-                    self._create_team_history_record(db, team_name, game.date, season)
+                for (team_name,) in teams:
+                    self._create_team_history_record(db, team_name, game_date, season)
                     records_created += 1
 
-            logger.info("Team statistics generated", records=records_created)
+            logger.info("Team statistics generated", records=records_created, dates=len(game_dates), teams=len(teams))
             return records_created
 
     def _get_team_games(self, db: Session, team_name: str, season: str) -> List[Game]:

@@ -56,39 +56,6 @@ class Game(Base):
     away_ftfga: Mapped[Optional[Decimal]] = mapped_column(Numeric(7, 3))
     away_ortg: Mapped[Optional[Decimal]] = mapped_column(Numeric(7, 3))
 
-    # Field goal percentages by quarter
-    fg_home_p1: Mapped[Optional[Decimal]] = mapped_column(Numeric(10, 3), index=True)
-    fg_home_p2: Mapped[Optional[Decimal]] = mapped_column(Numeric(10, 3))
-    fg_home_p3: Mapped[Optional[Decimal]] = mapped_column(Numeric(10, 3))
-    fg_home_p4: Mapped[Optional[Decimal]] = mapped_column(Numeric(10, 3))
-
-    fg_away_p1: Mapped[Optional[Decimal]] = mapped_column(Numeric(10, 3))
-    fg_away_p2: Mapped[Optional[Decimal]] = mapped_column(Numeric(10, 3))
-    fg_away_p3: Mapped[Optional[Decimal]] = mapped_column(Numeric(10, 3))
-    fg_away_p4: Mapped[Optional[Decimal]] = mapped_column(Numeric(10, 3))
-
-    # Turnovers by quarter
-    to_home_p1: Mapped[Optional[Decimal]] = mapped_column(Numeric(10, 3))
-    to_home_p2: Mapped[Optional[Decimal]] = mapped_column(Numeric(10, 3))
-    to_home_p3: Mapped[Optional[Decimal]] = mapped_column(Numeric(10, 3))
-    to_home_p4: Mapped[Optional[Decimal]] = mapped_column(Numeric(10, 3))
-
-    to_away_p1: Mapped[Optional[Decimal]] = mapped_column(Numeric(10, 3))
-    to_away_p2: Mapped[Optional[Decimal]] = mapped_column(Numeric(10, 3))
-    to_away_p3: Mapped[Optional[Decimal]] = mapped_column(Numeric(10, 3))
-    to_away_p4: Mapped[Optional[Decimal]] = mapped_column(Numeric(10, 3))
-
-    # Rebounds by quarter
-    rb_home_p1: Mapped[Optional[Decimal]] = mapped_column(Numeric(10, 3))
-    rb_home_p2: Mapped[Optional[Decimal]] = mapped_column(Numeric(10, 3))
-    rb_home_p3: Mapped[Optional[Decimal]] = mapped_column(Numeric(10, 3))
-    rb_home_p4: Mapped[Optional[Decimal]] = mapped_column(Numeric(10, 3))
-
-    rb_away_p1: Mapped[Optional[Decimal]] = mapped_column(Numeric(10, 3))
-    rb_away_p2: Mapped[Optional[Decimal]] = mapped_column(Numeric(10, 3))
-    rb_away_p3: Mapped[Optional[Decimal]] = mapped_column(Numeric(10, 3))
-    rb_away_p4: Mapped[Optional[Decimal]] = mapped_column(Numeric(10, 3))
-
     def __repr__(self) -> str:
         return (
             f"<Game(date='{self.date}', "
@@ -109,11 +76,9 @@ class PlayByPlay(Base):
 
     home_comment: Mapped[Optional[str]] = mapped_column(Text)
     home_score: Mapped[Optional[int]] = mapped_column(Integer)
-    home_cumulative_score: Mapped[Optional[int]] = mapped_column(Integer)
 
     away_comment: Mapped[Optional[str]] = mapped_column(Text)
     away_score: Mapped[Optional[int]] = mapped_column(Integer)
-    away_cumulative_score: Mapped[Optional[int]] = mapped_column(Integer)
 
     def __repr__(self) -> str:
         return f"<PlayByPlay(game='{self.game_id}', quarter={self.quarter}, duration={self.duration})>"

@@ -169,25 +169,22 @@ class ClaudePredictor:
                 },
                 "points_against_averages": {
                     "last_1": float(history.pointavg1a) if history.pointavg1a else 0.0,
-                    "last_3": float(history.pointavg3a) if history.pointavg3a else 0.0,
-                    "last_5": float(history.pointavg5a) if history.pointavg5a else 0.0,
-                    "last_10": float(history.pointavg10a) if history.pointavg10a else 0.0,
                     "overall": float(history.pointavga) if history.pointavga else 0.0,
                 },
                 "advanced_metrics": {
-                    "pace": float(history.pace_avg1) if history.pace_avg1 else 0.0,
-                    "efg_percentage": float(history.efg_avg1) if history.efg_avg1 else 0.0,
+                    "pace": float(history.pace_avg) if history.pace_avg else 0.0,
+                    "efg_percentage": float(history.efg_avg) if history.efg_avg else 0.0,
                     "turnover_percentage": (
-                        float(history.tov_avg1) if history.tov_avg1 else 0.0
+                        float(history.tov_avg) if history.tov_avg else 0.0
                     ),
                     "offensive_rebound_percentage": (
-                        float(history.orb_avg1) if history.orb_avg1 else 0.0
+                        float(history.orb_avg) if history.orb_avg else 0.0
                     ),
                     "free_throw_rate": (
-                        float(history.ftfga_avg1) if history.ftfga_avg1 else 0.0
+                        float(history.ftfga_avg) if history.ftfga_avg else 0.0
                     ),
                     "offensive_rating": (
-                        float(history.ortg_avg1) if history.ortg_avg1 else 0.0
+                        float(history.ortg_avg) if history.ortg_avg else 0.0
                     ),
                 },
                 "days_since_last_game": history.day_diff,
