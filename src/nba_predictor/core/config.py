@@ -1,10 +1,20 @@
 """Configuration management using Pydantic settings."""
 
+import os
 from functools import lru_cache
+from pathlib import Path
 from typing import Literal
 
+from dotenv import load_dotenv
 from pydantic import Field, field_validator
 from pydantic_settings import BaseSettings, SettingsConfigDict
+
+# Load .env BEFORE any class definitions
+env_path = Path(__file__).parent.parent.parent.parent / ".env"
+if env_path.exists():
+    load_dotenv(env_path, override=True)
+else:
+    print(f"WARNING: .env file not found at {env_path}")
 
 
 class DatabaseSettings(BaseSettings):
@@ -86,13 +96,6 @@ class Settings(BaseSettings):
     anthropic: AnthropicSettings = Field(default_factory=AnthropicSettings)
     logging: LoggingSettings = Field(default_factory=LoggingSettings)
     app: AppSettings = Field(default_factory=AppSettings)
-
-    model_config = SettingsConfigDict(
-        env_file=".env",
-        env_file_encoding="utf-8",
-        case_sensitive=False,
-        extra="ignore",
-    )
 
 
 @lru_cache
