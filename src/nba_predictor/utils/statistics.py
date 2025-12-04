@@ -101,7 +101,46 @@ class StatisticsCalculator:
             game_date: Game date
             season: Season year
         """
-        # Get previous games
+        # Count total games played before this date
+        total_games = (
+            db.query(func.count(Game.id))
+            .filter(
+                or_(Game.home_name == team_name, Game.away_name == team_name),
+                Game.date < game_date,
+                Game.season == season,
+                Game.home_point.isnot(None),
+            )
+            .scalar()
+        )
+
+        if total_games == 0:
+            # First game of season
+            history = TeamHistory(
+                team_name=team_name,
+                date=game_date,
+                season=season,
+                game=0,
+                win=0,
+            )
+            db.add(history)
+            return
+
+        # Count total wins before this date
+        total_wins = (
+            db.query(func.count(Game.id))
+            .filter(
+                or_(
+                    and_(Game.home_name == team_name, Game.home_point > Game.away_point),
+                    and_(Game.away_name == team_name, Game.away_point > Game.home_point),
+                ),
+                Game.date < game_date,
+                Game.season == season,
+                Game.home_point.isnot(None),
+            )
+            .scalar()
+        )
+
+        # Get last 10 games for calculating statistics
         previous_games = (
             db.query(Game)
             .filter(
@@ -115,20 +154,8 @@ class StatisticsCalculator:
             .all()
         )
 
-        if not previous_games:
-            # First game of season
-            history = TeamHistory(
-                team_name=team_name,
-                date=game_date,
-                season=season,
-                game=0,
-                win=0,
-            )
-            db.add(history)
-            return
-
         # Calculate statistics
-        stats = self._calculate_statistics(team_name, previous_games)
+        stats = self._calculate_statistics(team_name, previous_games, total_games, total_wins)
 
         # Get day difference
         day_diff = (game_date - previous_games[0].date).days
@@ -144,19 +171,21 @@ class StatisticsCalculator:
 
         db.add(history)
 
-    def _calculate_statistics(self, team_name: str, games: List[Game]) -> dict:
+    def _calculate_statistics(self, team_name: str, games: List[Game], total_games: int, total_wins: int) -> dict:
         """Calculate statistics from previous games.
 
         Args:
             team_name: Team name
-            games: List of previous games (most recent first)
+            games: List of previous games (most recent first, max 10)
+            total_games: Total number of games played in the season
+            total_wins: Total number of wins in the season
 
         Returns:
             Dictionary of statistics
         """
         stats = {
-            "game": len(games),
-            "win": 0,
+            "game": total_games,
+            "win": total_wins,
             "last1": 0,
             "last3": 0,
             "last5": 0,
@@ -166,7 +195,6 @@ class StatisticsCalculator:
         # Calculate for different windows
         total_points = 0
         total_points_against = 0
-        total_wins = 0
 
         # Advanced metrics
         total_pace = Decimal(0)
@@ -192,8 +220,6 @@ class StatisticsCalculator:
 
             total_points += team_points
             total_points_against += opp_points
-            if won:
-                total_wins += 1
 
             # Window-specific stats
             if i == 0:
@@ -298,7 +324,6 @@ class StatisticsCalculator:
 
         # Calculate averages
         num_games = len(games)
-        stats["win"] = total_wins
         stats["pointavg"] = Decimal(total_points) / Decimal(num_games)
         stats["pointavga"] = Decimal(total_points_against) / Decimal(num_games)
 
