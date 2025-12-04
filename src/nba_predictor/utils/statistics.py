@@ -101,7 +101,46 @@ class StatisticsCalculator:
             game_date: Game date
             season: Season year
         """
-        # Get previous games
+        # Count total games played before this date
+        total_games = (
+            db.query(func.count(Game.id))
+            .filter(
+                or_(Game.home_name == team_name, Game.away_name == team_name),
+                Game.date < game_date,
+                Game.season == season,
+                Game.home_point.isnot(None),
+            )
+            .scalar()
+        )
+
+        if total_games == 0:
+            # First game of season
+            history = TeamHistory(
+                team_name=team_name,
+                date=game_date,
+                season=season,
+                game=0,
+                win=0,
+            )
+            db.add(history)
+            return
+
+        # Count total wins before this date
+        total_wins = (
+            db.query(func.count(Game.id))
+            .filter(
+                or_(
+                    and_(Game.home_name == team_name, Game.home_point > Game.away_point),
+                    and_(Game.away_name == team_name, Game.away_point > Game.home_point),
+                ),
+                Game.date < game_date,
+                Game.season == season,
+                Game.home_point.isnot(None),
+            )
+            .scalar()
+        )
+
+        # Get last 10 games for calculating statistics
         previous_games = (
             db.query(Game)
             .filter(
@@ -115,20 +154,8 @@ class StatisticsCalculator:
             .all()
         )
 
-        if not previous_games:
-            # First game of season
-            history = TeamHistory(
-                team_name=team_name,
-                date=game_date,
-                season=season,
-                game=0,
-                win=0,
-            )
-            db.add(history)
-            return
-
         # Calculate statistics
-        stats = self._calculate_statistics(team_name, previous_games)
+        stats = self._calculate_statistics(team_name, previous_games, total_games, total_wins)
 
         # Get day difference
         day_diff = (game_date - previous_games[0].date).days
@@ -144,19 +171,21 @@ class StatisticsCalculator:
 
         db.add(history)
 
-    def _calculate_statistics(self, team_name: str, games: List[Game]) -> dict:
+    def _calculate_statistics(self, team_name: str, games: List[Game], total_games: int, total_wins: int) -> dict:
         """Calculate statistics from previous games.
 
         Args:
             team_name: Team name
-            games: List of previous games (most recent first)
+            games: List of previous games (most recent first, max 10)
+            total_games: Total number of games played in the season
+            total_wins: Total number of wins in the season
 
         Returns:
             Dictionary of statistics
         """
         stats = {
-            "game": len(games),
-            "win": 0,
+            "game": total_games,
+            "win": total_wins,
             "last1": 0,
             "last3": 0,
             "last5": 0,
@@ -166,7 +195,6 @@ class StatisticsCalculator:
         # Calculate for different windows
         total_points = 0
         total_points_against = 0
-        total_wins = 0
 
         # Advanced metrics
         total_pace = Decimal(0)
@@ -176,11 +204,12 @@ class StatisticsCalculator:
         total_ftfga = Decimal(0)
         total_ortg = Decimal(0)
 
-        # Quarter points
+        # Quarter points - count only games where quarter data exists
         total_p1 = 0
         total_p2 = 0
         total_p3 = 0
         total_p4 = 0
+        games_with_quarter_data = 0
 
         for i, game in enumerate(games):
             is_home = game.home_name == team_name
@@ -191,8 +220,6 @@ class StatisticsCalculator:
 
             total_points += team_points
             total_points_against += opp_points
-            if won:
-                total_wins += 1
 
             # Window-specific stats
             if i == 0:
@@ -266,14 +293,13 @@ class StatisticsCalculator:
                 if game.home_ortg:
                     total_ortg += game.home_ortg
 
-                if game.home_p1:
+                # Quarter points - only count if data exists
+                if game.home_p1 is not None and game.home_p2 is not None and game.home_p3 is not None and game.home_p4 is not None:
                     total_p1 += game.home_p1
-                if game.home_p2:
                     total_p2 += game.home_p2
-                if game.home_p3:
                     total_p3 += game.home_p3
-                if game.home_p4:
                     total_p4 += game.home_p4
+                    games_with_quarter_data += 1
             else:
                 if game.away_pace:
                     total_pace += game.away_pace
@@ -288,18 +314,16 @@ class StatisticsCalculator:
                 if game.away_ortg:
                     total_ortg += game.away_ortg
 
-                if game.away_p1:
+                # Quarter points - only count if data exists
+                if game.away_p1 is not None and game.away_p2 is not None and game.away_p3 is not None and game.away_p4 is not None:
                     total_p1 += game.away_p1
-                if game.away_p2:
                     total_p2 += game.away_p2
-                if game.away_p3:
                     total_p3 += game.away_p3
-                if game.away_p4:
                     total_p4 += game.away_p4
+                    games_with_quarter_data += 1
 
         # Calculate averages
         num_games = len(games)
-        stats["win"] = total_wins
         stats["pointavg"] = Decimal(total_points) / Decimal(num_games)
         stats["pointavga"] = Decimal(total_points_against) / Decimal(num_games)
 
@@ -310,10 +334,12 @@ class StatisticsCalculator:
         stats["ftfga_avg"] = total_ftfga / Decimal(num_games)
         stats["ortg_avg"] = total_ortg / Decimal(num_games)
 
-        stats["p1_avg"] = Decimal(total_p1) / Decimal(num_games)
-        stats["p2_avg"] = Decimal(total_p2) / Decimal(num_games)
-        stats["p3_avg"] = Decimal(total_p3) / Decimal(num_games)
-        stats["p4_avg"] = Decimal(total_p4) / Decimal(num_games)
+        # Calculate quarter averages only from games that have quarter data
+        if games_with_quarter_data > 0:
+            stats["p1_avg"] = Decimal(total_p1) / Decimal(games_with_quarter_data)
+            stats["p2_avg"] = Decimal(total_p2) / Decimal(games_with_quarter_data)
+            stats["p3_avg"] = Decimal(total_p3) / Decimal(games_with_quarter_data)
+            stats["p4_avg"] = Decimal(total_p4) / Decimal(games_with_quarter_data)
 
         return stats
 
