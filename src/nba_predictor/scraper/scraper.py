@@ -442,6 +442,60 @@ class BasketballReferenceScraper:
         logger.info("Play-by-play import completed", games_processed=games_processed)
         return games_processed
 
+    def import_play_by_play_for_month(self, season: str, month: str) -> int:
+        """Import play-by-play data for all games in a specific season and month.
+
+        Args:
+            season: NBA season year (e.g., "2024")
+            month: Month name (e.g., "january")
+
+        Returns:
+            Number of games processed
+
+        Raises:
+            ValueError: If month is invalid
+            ScraperError: If scraping fails
+        """
+        if month.lower() not in self.MONTH_MAP:
+            raise ValueError(f"Invalid month: {month}")
+
+        month_num = self.MONTH_MAP[month.lower()]
+
+        logger.info("Starting play-by-play import for month", season=season, month=month)
+
+        # Get all games for this month
+        with get_db() as db:
+            game_ids = (
+                db.query(Game.id2)
+                .filter(Game.season == season)
+                .filter(func.month(Game.date) == month_num)
+                .filter(Game.id2.isnot(None))
+                .all()
+            )
+
+            # Delete existing play-by-play data for these games
+            for (game_id,) in game_ids:
+                db.query(PlayByPlay).filter(PlayByPlay.game_id == game_id).delete(
+                    synchronize_session=False
+                )
+
+            logger.info("Deleted existing play-by-play data for month", games=len(game_ids))
+
+        games_processed = 0
+
+        for (game_id,) in game_ids:
+            try:
+                self._import_game_play_by_play(game_id)
+                games_processed += 1
+                time.sleep(0.5)  # Rate limiting
+
+            except Exception as e:
+                logger.error("Failed to import play-by-play", game_id=game_id, error=str(e))
+                continue
+
+        logger.info("Play-by-play import for month completed", games_processed=games_processed)
+        return games_processed
+
     def _import_game_play_by_play(self, game_id: str) -> None:
         """Import play-by-play data for a specific game.
 
