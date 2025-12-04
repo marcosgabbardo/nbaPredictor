@@ -147,6 +147,7 @@ source venv/bin/activate  # On Windows: venv\Scripts\activate
 
 ```bash
 pip install -r requirements.txt
+pip install -e .
 ```
 
 ### Step 4: Set Up Database
