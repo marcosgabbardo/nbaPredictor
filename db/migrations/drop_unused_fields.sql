@@ -57,8 +57,74 @@ ALTER TABLE `nba_playbyplay`
   DROP COLUMN IF EXISTS `away_cumulative_score`;
 
 -- ============================================================
+-- Table: nba_team_history
+-- Removing: Unused aggregate fields and legacy statistics
+-- ============================================================
+
+-- Drop unused points against aggregates (3 fields)
+ALTER TABLE `nba_team_history`
+  DROP COLUMN IF EXISTS `pointavg3a`,
+  DROP COLUMN IF EXISTS `pointavg5a`,
+  DROP COLUMN IF EXISTS `pointavg10a`;
+
+-- Drop advanced metrics for last 1 game (6 fields)
+ALTER TABLE `nba_team_history`
+  DROP COLUMN IF EXISTS `pace_avg1`,
+  DROP COLUMN IF EXISTS `efg_avg1`,
+  DROP COLUMN IF EXISTS `tov_avg1`,
+  DROP COLUMN IF EXISTS `orb_avg1`,
+  DROP COLUMN IF EXISTS `ftfga_avg1`,
+  DROP COLUMN IF EXISTS `ortg_avg1`;
+
+-- Drop advanced metrics for last 3 games (6 fields)
+ALTER TABLE `nba_team_history`
+  DROP COLUMN IF EXISTS `pace_avg3`,
+  DROP COLUMN IF EXISTS `efg_avg3`,
+  DROP COLUMN IF EXISTS `tov_avg3`,
+  DROP COLUMN IF EXISTS `orb_avg3`,
+  DROP COLUMN IF EXISTS `ftfga_avg3`,
+  DROP COLUMN IF EXISTS `ortg_avg3`;
+
+-- Drop advanced metrics for last 5 games (6 fields)
+ALTER TABLE `nba_team_history`
+  DROP COLUMN IF EXISTS `pace_avg5`,
+  DROP COLUMN IF EXISTS `efg_avg5`,
+  DROP COLUMN IF EXISTS `tov_avg5`,
+  DROP COLUMN IF EXISTS `orb_avg5`,
+  DROP COLUMN IF EXISTS `ftfga_avg5`,
+  DROP COLUMN IF EXISTS `ortg_avg5`;
+
+-- Drop advanced metrics for last 10 games (6 fields)
+ALTER TABLE `nba_team_history`
+  DROP COLUMN IF EXISTS `pace_avg10`,
+  DROP COLUMN IF EXISTS `efg_avg10`,
+  DROP COLUMN IF EXISTS `tov_avg10`,
+  DROP COLUMN IF EXISTS `orb_avg10`,
+  DROP COLUMN IF EXISTS `ftfga_avg10`,
+  DROP COLUMN IF EXISTS `ortg_avg10`;
+
+-- Drop quarter averages for last 5 games (4 fields)
+ALTER TABLE `nba_team_history`
+  DROP COLUMN IF EXISTS `p1_avg5`,
+  DROP COLUMN IF EXISTS `p2_avg5`,
+  DROP COLUMN IF EXISTS `p3_avg5`,
+  DROP COLUMN IF EXISTS `p4_avg5`;
+
+-- Drop quarter averages for last 10 games (4 fields)
+ALTER TABLE `nba_team_history`
+  DROP COLUMN IF EXISTS `p1_avg10`,
+  DROP COLUMN IF EXISTS `p2_avg10`,
+  DROP COLUMN IF EXISTS `p3_avg10`,
+  DROP COLUMN IF EXISTS `p4_avg10`;
+
+-- Drop overtime field (1 field)
+ALTER TABLE `nba_team_history`
+  DROP COLUMN IF EXISTS `overtime`;
+
+-- ============================================================
 -- Summary:
 -- - Dropped 24 fields from nba_game
 -- - Dropped 2 fields from nba_playbyplay
--- - Total: 26 unused fields removed
+-- - Dropped 36 fields from nba_team_history
+-- - Total: 62 unused fields removed
 -- ============================================================
