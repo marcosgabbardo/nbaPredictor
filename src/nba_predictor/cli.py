@@ -2,7 +2,7 @@
 
 import sys
 from datetime import date, datetime
-from typing import Optional
+from typing import List, Optional
 
 from nba_predictor.core.config import get_settings
 from nba_predictor.core.logger import get_logger, setup_logging
@@ -37,21 +37,42 @@ class NBA_Predictor_CLI:
             logger.error("Database initialization failed", error=str(e), exc_info=True)
             sys.exit(1)
 
-    def scrape_games(self, season: str, month: str) -> None:
-        """Scrape games for a season and month.
+    def scrape_games(self, season: str, months: List[str], scrape_pbp: bool = False) -> None:
+        """Scrape games for a season and one or more months.
 
         Args:
             season: NBA season year
-            month: Month name
+            months: List of month names
+            scrape_pbp: Whether to also scrape play-by-play data
         """
-        print(f"🏀 Scraping games for {month} {season}...")
-        try:
-            count = self.scraper.import_games(season, month)
-            print(f"✅ Imported {count} games successfully!")
-        except (ScraperError, ValueError) as e:
-            print(f"❌ Failed to scrape games: {e}")
-            logger.error("Game scraping failed", error=str(e), exc_info=True)
-            sys.exit(1)
+        total_games = 0
+        total_pbp_games = 0
+
+        for month in months:
+            print(f"🏀 Scraping games for {month} {season}...")
+            try:
+                count = self.scraper.import_games(season, month)
+                print(f"✅ Imported {count} games for {month}!")
+                total_games += count
+
+                # Scrape play-by-play if requested
+                if scrape_pbp and count > 0:
+                    print(f"🏀 Scraping play-by-play data for {month} {season}...")
+                    pbp_count = self.scraper.import_play_by_play_for_month(season, month)
+                    print(f"✅ Imported play-by-play for {pbp_count} games in {month}!")
+                    total_pbp_games += pbp_count
+
+            except (ScraperError, ValueError) as e:
+                print(f"❌ Failed to scrape games for {month}: {e}")
+                logger.error("Game scraping failed", month=month, error=str(e), exc_info=True)
+                continue
+
+        print(f"\n{'='*60}")
+        print(f"📊 Summary:")
+        print(f"   Total games imported: {total_games}")
+        if scrape_pbp:
+            print(f"   Total play-by-play games: {total_pbp_games}")
+        print(f"{'='*60}\n")
 
     def scrape_play_by_play(self, date_str: str) -> None:
         """Scrape play-by-play data for a date.
@@ -206,8 +227,14 @@ Examples:
   # Initialize database
   python -m nba_predictor.cli init
 
-  # Scrape games
+  # Scrape games for one month
   python -m nba_predictor.cli scrape-games 2024 january
+
+  # Scrape games for multiple months
+  python -m nba_predictor.cli scrape-games 2024 january february march
+
+  # Scrape games and play-by-play data
+  python -m nba_predictor.cli scrape-games 2024 january february --scrape-pbp
 
   # Calculate statistics
   python -m nba_predictor.cli calculate-stats 2024
@@ -229,11 +256,18 @@ Examples:
     subparsers.add_parser("init", help="Initialize database")
 
     # Scrape games command
-    scrape_parser = subparsers.add_parser("scrape-games", help="Scrape games for a month")
+    scrape_parser = subparsers.add_parser("scrape-games", help="Scrape games for one or more months")
     scrape_parser.add_argument("season", help="NBA season year (e.g., 2024)")
     scrape_parser.add_argument(
-        "month",
-        help="Month name (e.g., january, february)",
+        "months",
+        nargs='+',
+        help="Month name(s) (e.g., january, february, march). Can specify multiple months separated by spaces",
+    )
+    scrape_parser.add_argument(
+        "--scrape-pbp",
+        action="store_true",
+        default=False,
+        help="Also scrape play-by-play data for games in these months",
     )
 
     # Scrape play-by-play command
@@ -271,7 +305,7 @@ Examples:
     if args.command == "init":
         cli.init_database()
     elif args.command == "scrape-games":
-        cli.scrape_games(args.season, args.month)
+        cli.scrape_games(args.season, args.months, args.scrape_pbp)
     elif args.command == "scrape-pbp":
         cli.scrape_play_by_play(args.date)
     elif args.command == "calculate-stats":
