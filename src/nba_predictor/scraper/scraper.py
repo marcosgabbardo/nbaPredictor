@@ -4,7 +4,7 @@ import time
 from datetime import date, datetime
 from typing import Any, Dict, List, Optional
 
-import requests
+import cloudscraper  # <-- Trocar requests por cloudscraper
 from bs4 import BeautifulSoup
 from requests.adapters import HTTPAdapter
 from sqlalchemy import func
@@ -38,38 +38,47 @@ class BasketballReferenceScraper:
         "june": 6,
     }
 
+    def _establish_session(self) -> None:
+        """Establish a session by visiting the homepage first."""
+        try:
+            # Visit homepage first to get cookies
+            homepage_response = self.session.get(
+                self.base_url,
+                headers={
+                    'User-Agent': 'Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36',
+                    'Accept': 'text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8',
+                    'Accept-Language': 'en-US,en;q=0.9',
+                },
+                timeout=30
+            )
+            logger.info("Session established", status=homepage_response.status_code)
+            time.sleep(2)  # Wait before making actual requests
+        except Exception as e:
+            logger.warning("Could not establish session", error=str(e))
+
     def __init__(self) -> None:
         """Initialize the scraper with configuration."""
         self.settings = get_settings()
         self.base_url = self.settings.scraper.base_url
         self.session = self._create_session()
+        self._establish_session()  # <-- Adicione esta linha
         logger.info("Basketball Reference scraper initialized")
 
-    def _create_session(self) -> requests.Session:
-        """Create a requests session with retry logic.
+    def _create_session(self) -> cloudscraper.CloudScraper:
+        """Create a cloudscraper session with retry logic.
 
         Returns:
-            Configured requests session
+            Configured cloudscraper session
         """
-        session = requests.Session()
-
-        retry_strategy = Retry(
-            total=self.settings.scraper.retry_attempts,
-            backoff_factor=self.settings.scraper.retry_delay,
-            status_forcelist=[429, 500, 502, 503, 504],
-            allowed_methods=["GET"],
-        )
-
-        adapter = HTTPAdapter(max_retries=retry_strategy)
-        session.mount("http://", adapter)
-        session.mount("https://", adapter)
-
-        session.headers.update(
-            {
-                "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36",
+        # Use cloudscraper instead of requests.Session
+        session = cloudscraper.create_scraper(
+            browser={
+                'browser': 'chrome',
+                'platform': 'darwin',
+                'desktop': True
             }
         )
-
+        
         return session
 
     def _get_page(self, url: str) -> BeautifulSoup:
@@ -86,10 +95,29 @@ class BasketballReferenceScraper:
         """
         try:
             logger.debug("Fetching page", url=url)
-            response = self.session.get(url, timeout=self.settings.scraper.timeout)
+            
+            # Add small random delay to avoid rate limiting
+            time.sleep(1.5 + (hash(url) % 100) / 100)
+            
+            # Override headers for this specific request to match working curl
+            headers = {
+                'User-Agent': 'Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36',
+                'Accept': 'text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8',
+                'Accept-Language': 'en-US,en;q=0.9',
+                'Accept-Encoding': 'gzip, deflate, br',
+                'Referer': 'https://www.basketball-reference.com/',
+                'Connection': 'keep-alive',
+            }
+            
+            response = self.session.get(
+                url, 
+                headers=headers, 
+                timeout=self.settings.scraper.timeout,
+                allow_redirects=True
+            )
             response.raise_for_status()
 
-            return BeautifulSoup(response.text, "lxml")
+            return BeautifulSoup(response.text, "html.parser")
 
         except requests.exceptions.Timeout:
             logger.error("Request timeout", url=url)
