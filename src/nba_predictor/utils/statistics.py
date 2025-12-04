@@ -176,11 +176,12 @@ class StatisticsCalculator:
         total_ftfga = Decimal(0)
         total_ortg = Decimal(0)
 
-        # Quarter points
+        # Quarter points - count only games where quarter data exists
         total_p1 = 0
         total_p2 = 0
         total_p3 = 0
         total_p4 = 0
+        games_with_quarter_data = 0
 
         for i, game in enumerate(games):
             is_home = game.home_name == team_name
@@ -266,14 +267,13 @@ class StatisticsCalculator:
                 if game.home_ortg:
                     total_ortg += game.home_ortg
 
-                if game.home_p1:
+                # Quarter points - only count if data exists
+                if game.home_p1 is not None and game.home_p2 is not None and game.home_p3 is not None and game.home_p4 is not None:
                     total_p1 += game.home_p1
-                if game.home_p2:
                     total_p2 += game.home_p2
-                if game.home_p3:
                     total_p3 += game.home_p3
-                if game.home_p4:
                     total_p4 += game.home_p4
+                    games_with_quarter_data += 1
             else:
                 if game.away_pace:
                     total_pace += game.away_pace
@@ -288,14 +288,13 @@ class StatisticsCalculator:
                 if game.away_ortg:
                     total_ortg += game.away_ortg
 
-                if game.away_p1:
+                # Quarter points - only count if data exists
+                if game.away_p1 is not None and game.away_p2 is not None and game.away_p3 is not None and game.away_p4 is not None:
                     total_p1 += game.away_p1
-                if game.away_p2:
                     total_p2 += game.away_p2
-                if game.away_p3:
                     total_p3 += game.away_p3
-                if game.away_p4:
                     total_p4 += game.away_p4
+                    games_with_quarter_data += 1
 
         # Calculate averages
         num_games = len(games)
@@ -310,10 +309,12 @@ class StatisticsCalculator:
         stats["ftfga_avg"] = total_ftfga / Decimal(num_games)
         stats["ortg_avg"] = total_ortg / Decimal(num_games)
 
-        stats["p1_avg"] = Decimal(total_p1) / Decimal(num_games)
-        stats["p2_avg"] = Decimal(total_p2) / Decimal(num_games)
-        stats["p3_avg"] = Decimal(total_p3) / Decimal(num_games)
-        stats["p4_avg"] = Decimal(total_p4) / Decimal(num_games)
+        # Calculate quarter averages only from games that have quarter data
+        if games_with_quarter_data > 0:
+            stats["p1_avg"] = Decimal(total_p1) / Decimal(games_with_quarter_data)
+            stats["p2_avg"] = Decimal(total_p2) / Decimal(games_with_quarter_data)
+            stats["p3_avg"] = Decimal(total_p3) / Decimal(games_with_quarter_data)
+            stats["p4_avg"] = Decimal(total_p4) / Decimal(games_with_quarter_data)
 
         return stats
 
