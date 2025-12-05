@@ -168,25 +168,9 @@ class RotoWireScraper:
 
         lineups_imported = 0
 
-        # DEBUG: Save HTML to file for inspection
-        try:
-            with open("/tmp/rotowire_debug.html", "w") as f:
-                f.write(lineups_page.prettify())
-            logger.info("DEBUG: Saved HTML to /tmp/rotowire_debug.html")
-        except Exception as e:
-            logger.warning("Could not save debug HTML", error=str(e))
-
-        # DEBUG: Try different search patterns
-        all_divs_with_lineup = lineups_page.find_all("div", class_=lambda x: x and "lineup" in str(x).lower())
-        logger.info("DEBUG: All divs with 'lineup' in class", count=len(all_divs_with_lineup))
-
-        # Show first few class names
-        for i, div in enumerate(all_divs_with_lineup[:5]):
-            logger.info(f"DEBUG: Div {i+1} classes", classes=div.get('class', []))
-
         # Find all lineup boxes (game cards)
-        # The class is "lineup is-nba", so we need to search by class containing "lineup"
-        lineup_boxes = lineups_page.find_all("div", class_=lambda x: x and "lineup" in x and "is-nba" in x)
+        # The class is "lineup is-nba"
+        lineup_boxes = lineups_page.find_all("div", {"class": "lineup is-nba"})
 
         logger.info("Found lineup boxes", count=len(lineup_boxes))
 
@@ -253,13 +237,13 @@ class RotoWireScraper:
             return lineups
 
         # Parse away team (is-visit)
-        away_list = lineup_main.find("ul", class_=lambda x: x and "lineup__list" in x and "is-visit" in x)
+        away_list = lineup_main.find("ul", {"class": "lineup__list is-visit"})
         if away_list:
             away_lineups = self._parse_team_list(away_list, away_team, scrape_date, game_date)
             lineups.extend(away_lineups)
 
         # Parse home team (is-home)
-        home_list = lineup_main.find("ul", class_=lambda x: x and "lineup__list" in x and "is-home" in x)
+        home_list = lineup_main.find("ul", {"class": "lineup__list is-home"})
         if home_list:
             home_lineups = self._parse_team_list(home_list, home_team, scrape_date, game_date)
             lineups.extend(home_lineups)
