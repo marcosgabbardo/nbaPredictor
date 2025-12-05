@@ -9,7 +9,7 @@ pymysql==1.1.0
 alembic==1.13.1
 
 # Web scraping
-requests==2.31.0
+requests==2.32.4
 cloudscraper==1.2.71
 beautifulsoup4==4.12.2
 lxml==4.9.3
