@@ -168,50 +168,67 @@ class RotoWireScraper:
 
         lineups_imported = 0
 
-        # DEBUG: Save HTML to file for inspection
+        # DEBUG: Save HTML to file for inspection (in current directory for easy access)
+        import os
+        html_file_path = "rotowire_debug.html"
         try:
-            with open("/tmp/rotowire_debug.html", "w", encoding="utf-8") as f:
+            with open(html_file_path, "w", encoding="utf-8") as f:
                 f.write(lineups_page.prettify())
-            logger.info("DEBUG: Saved HTML to /tmp/rotowire_debug.html")
+            abs_path = os.path.abspath(html_file_path)
+            logger.info("DEBUG: Saved HTML", path=abs_path)
+            print(f"\n🔍 DEBUG: HTML saved to: {abs_path}\n")
         except Exception as e:
             logger.warning("Could not save debug HTML", error=str(e))
 
-        # DEBUG: Try multiple selector patterns
-        logger.info("DEBUG: Testing different selector patterns...")
+        # DEBUG: Print HTML preview to console
+        html_str = str(lineups_page)
+        html_preview = html_str[:2000]
+        print("\n" + "="*80)
+        print("HTML PREVIEW (first 2000 chars):")
+        print("="*80)
+        print(html_preview)
+        print("="*80 + "\n")
 
-        # Pattern 1: Exact class match with dict
-        pattern1 = lineups_page.find_all("div", {"class": "lineup is-nba"})
-        logger.info("DEBUG Pattern 1: dict {'class': 'lineup is-nba'}", count=len(pattern1))
+        # Check for JavaScript rendering indicators
+        if "window." in html_str or "React" in html_str or "Vue" in html_str or "Angular" in html_str:
+            logger.warning("⚠️  Page may be JavaScript-rendered - content might load dynamically")
+            print("⚠️  WARNING: This page appears to use JavaScript to load content!")
+            print("   Consider using Selenium or Playwright for dynamic content\n")
 
-        # Pattern 2: List of classes
-        pattern2 = lineups_page.find_all("div", class_=["lineup", "is-nba"])
-        logger.info("DEBUG Pattern 2: list ['lineup', 'is-nba']", count=len(pattern2))
+        # Look for any divs with common lineup-related patterns
+        print("\n🔍 Searching for lineup-related elements...")
 
-        # Pattern 3: CSS selector
-        pattern3 = lineups_page.select("div.lineup.is-nba")
-        logger.info("DEBUG Pattern 3: CSS selector 'div.lineup.is-nba'", count=len(pattern3))
+        all_divs = lineups_page.find_all("div")
+        print(f"   Total divs found: {len(all_divs)}")
 
-        # Pattern 4: Just "lineup" class
-        pattern4 = lineups_page.find_all("div", class_="lineup")
-        logger.info("DEBUG Pattern 4: class='lineup'", count=len(pattern4))
+        # Search for divs with various class patterns
+        patterns_to_check = [
+            ("lineup", "Contains 'lineup'"),
+            ("game", "Contains 'game'"),
+            ("matchup", "Contains 'matchup'"),
+            ("nba", "Contains 'nba'"),
+            ("card", "Contains 'card'"),
+            ("box", "Contains 'box'"),
+        ]
 
-        # Pattern 5: Contains "lineup" and "nba"
-        pattern5 = lineups_page.find_all("div", class_=lambda x: x and isinstance(x, list) and "lineup" in x and "is-nba" in x)
-        logger.info("DEBUG Pattern 5: lambda with list check", count=len(pattern5))
+        for pattern, description in patterns_to_check:
+            found = lineups_page.find_all("div", class_=lambda x: x and pattern in str(x).lower())
+            print(f"   Divs with '{pattern}' in class: {len(found)}")
+            if found and len(found) <= 5:
+                for div in found[:3]:
+                    classes = div.get('class', [])
+                    print(f"      → Classes: {classes}")
 
-        # Show all divs that have "lineup" in any class
-        all_lineup_divs = lineups_page.find_all("div", class_=lambda x: x and "lineup" in str(x).lower())
-        logger.info("DEBUG: All divs with 'lineup' in class", count=len(all_lineup_divs))
+        # Check for data attributes
+        data_attrs = lineups_page.find_all(attrs=lambda x: any(k.startswith('data-') for k in x.keys()) if x else False)
+        print(f"\n   Elements with data- attributes: {len(data_attrs)}")
+        if data_attrs and len(data_attrs) <= 10:
+            for elem in data_attrs[:5]:
+                data_dict = {k: v for k, v in elem.attrs.items() if k.startswith('data-')}
+                if data_dict:
+                    print(f"      → {elem.name}: {data_dict}")
 
-        # Show first few class combinations
-        seen_classes = set()
-        for div in all_lineup_divs[:20]:
-            classes = div.get('class', [])
-            if classes:
-                class_str = " ".join(sorted(classes))
-                if class_str not in seen_classes:
-                    seen_classes.add(class_str)
-                    logger.info("DEBUG: Found div with classes", classes=class_str)
+        print("\n" + "="*80 + "\n")
 
         # Find all lineup boxes (game cards)
         # Try CSS selector first as it's most reliable
