@@ -370,18 +370,31 @@ class StatisticsCalculator:
                 win_streak = 0
                 loss_streak = 0
                 prev_wins = 0
+                prev_games = 0
 
                 for record in history_records:
+                    # Skip if team didn't play on this date
+                    if record.game == prev_games:
+                        # Team didn't play, keep current streaks
+                        record.win_streak = win_streak
+                        record.loss_streak = loss_streak
+                        records_updated += 1
+                        continue
+
+                    # Team played - check if they won or lost
                     if record.win and record.win > prev_wins:
+                        # Won the game
                         win_streak += 1
                         loss_streak = 0
                     else:
+                        # Lost the game
                         win_streak = 0
                         loss_streak += 1
 
                     record.win_streak = win_streak
                     record.loss_streak = loss_streak
                     prev_wins = record.win or 0
+                    prev_games = record.game or 0
                     records_updated += 1
 
             logger.info("Streaks calculated", records=records_updated)
