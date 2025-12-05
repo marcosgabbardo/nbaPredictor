@@ -20,6 +20,7 @@ from datetime import date, datetime
 from pathlib import Path
 
 from nba_predictor.core.logger import get_logger
+from nba_predictor.models.database import init_db
 from nba_predictor.scraper.image_lineup_scraper import (
     ImageLineupScraper,
     ImageLineupScraperError,
@@ -80,6 +81,16 @@ def main():
     if game_date is None:
         game_date = date.today()
         logger.info(f"No date specified, using today: {game_date}")
+
+    # Initialize database
+    try:
+        logger.info("Initializing database connection...")
+        init_db()
+        logger.info("Database initialized successfully")
+    except Exception as e:
+        logger.error(f"Failed to initialize database: {e}")
+        logger.error("Make sure your database credentials are correct in .env file")
+        sys.exit(1)
 
     # Initialize scraper
     try:
