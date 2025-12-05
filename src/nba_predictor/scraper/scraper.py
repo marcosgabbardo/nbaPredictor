@@ -348,17 +348,20 @@ class BasketballReferenceScraper:
             away_row = rows[0].find_all("td")
             home_row = rows[1].find_all("td")
 
-            if len(away_row) >= 5 and len(home_row) >= 5:
+            # Basketball Reference line_score table structure:
+            # td[0] = 1st quarter, td[1] = 2nd quarter, td[2] = 3rd quarter, td[3] = 4th quarter
+            # td[4] = OT (if exists), last td = Total
+            if len(away_row) >= 4 and len(home_row) >= 4:
                 scores.update(
                     {
-                        "away_p1": int(away_row[1].text),
-                        "away_p2": int(away_row[2].text),
-                        "away_p3": int(away_row[3].text),
-                        "away_p4": int(away_row[4].text),
-                        "home_p1": int(home_row[1].text),
-                        "home_p2": int(home_row[2].text),
-                        "home_p3": int(home_row[3].text),
-                        "home_p4": int(home_row[4].text),
+                        "away_p1": int(away_row[0].text),
+                        "away_p2": int(away_row[1].text),
+                        "away_p3": int(away_row[2].text),
+                        "away_p4": int(away_row[3].text),
+                        "home_p1": int(home_row[0].text),
+                        "home_p2": int(home_row[1].text),
+                        "home_p3": int(home_row[2].text),
+                        "home_p4": int(home_row[3].text),
                     }
                 )
 
