@@ -139,7 +139,7 @@ cd nbaPredictor
 ### Step 2: Create Virtual Environment
 
 ```bash
-python -m venv venv
+python3 -m venv venv
 source venv/bin/activate  # On Windows: venv\Scripts\activate
 ```
 
@@ -179,7 +179,7 @@ Required environment variables:
 ### Step 6: Initialize Database
 
 ```bash
-python -m nba_predictor.cli init
+python3 -m nba_predictor.cli init
 ```
 
 ## ⚙️ Configuration
@@ -214,34 +214,40 @@ The CLI provides all functionality through simple commands:
 
 ```bash
 # Show help
-python -m nba_predictor.cli --help
+python3 -m nba_predictor.cli --help
 ```
 
 ### 1. Scrape Game Data
 
 ```bash
 # Scrape games for a specific month
-python -m nba_predictor.cli scrape-games 2024 january
+python3 -m nba_predictor.cli scrape-games 2024 january
+
+# Scrape multiple months at once
+python3 -m nba_predictor.cli scrape-games 2024 october november december
+
+# Scrape entire season (multiple months)
+python3 -m nba_predictor.cli scrape-games 2024 october november december january february march april may june
 
 # Scrape play-by-play data for a date
-python -m nba_predictor.cli scrape-pbp 2024-01-15
+python3 -m nba_predictor.cli scrape-pbp 2024-01-15
 ```
 
 ### 2. Calculate Statistics
 
 ```bash
 # Generate team statistics for a season
-python -m nba_predictor.cli calculate-stats 2024
+python3 -m nba_predictor.cli calculate-stats 2024
 ```
 
 ### 3. Make Predictions
 
 ```bash
 # Predict a specific game
-python -m nba_predictor.cli predict "Los Angeles Lakers" "Boston Celtics" 2024-01-15
+python3 -m nba_predictor.cli predict "Los Angeles Lakers" "Boston Celtics" 2024-01-15
 
 # Predict all games for a date
-python -m nba_predictor.cli predict-date 2024-01-15
+python3 -m nba_predictor.cli predict-date 2024-01-15
 ```
 
 Example output:
@@ -267,25 +273,32 @@ Example output:
 
 ```bash
 # Check prediction accuracy for a season
-python -m nba_predictor.cli analyze-accuracy 2024
+python3 -m nba_predictor.cli analyze-accuracy 2024
 ```
 
 ### Typical Workflow
 
 ```bash
 # 1. Scrape data for the season
+# Option A: Scrape all months at once (recommended for efficiency)
+python3 -m nba_predictor.cli scrape-games 2024 october november december january february march april may june
+
+# Option B: Scrape month by month in a loop
 for month in october november december january february march april may june; do
-    python -m nba_predictor.cli scrape-games 2024 $month
+    python3 -m nba_predictor.cli scrape-games 2024 $month
 done
 
+# Option C: Scrape specific months range
+python3 -m nba_predictor.cli scrape-games 2024 january february march
+
 # 2. Calculate statistics
-python -m nba_predictor.cli calculate-stats 2024
+python3 -m nba_predictor.cli calculate-stats 2024
 
 # 3. Make predictions for upcoming games
-python -m nba_predictor.cli predict-date 2024-01-20
+python3 -m nba_predictor.cli predict-date 2024-01-20
 
 # 4. Analyze accuracy
-python -m nba_predictor.cli analyze-accuracy 2024
+python3 -m nba_predictor.cli analyze-accuracy 2024
 ```
 
 ## 📁 Project Structure
@@ -330,7 +343,12 @@ The scraper fetches data from [Basketball Reference](https://www.basketball-refe
 from nba_predictor.scraper import BasketballReferenceScraper
 
 scraper = BasketballReferenceScraper()
+# Scrape a single month
 scraper.import_games("2024", "january")
+
+# Or scrape multiple months at once
+for month in ["october", "november", "december"]:
+    scraper.import_games("2024", month)
 ```
 
 Data collected includes:
