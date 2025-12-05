@@ -1,7 +1,7 @@
 """Claude AI-powered NBA game predictor."""
 
 import json
-from datetime import date
+from datetime import date, datetime
 from decimal import Decimal
 from typing import Any, Dict, List, Optional
 
@@ -9,7 +9,7 @@ from anthropic import Anthropic
 
 from nba_predictor.core.config import get_settings
 from nba_predictor.core.logger import get_logger
-from nba_predictor.models import Game, TeamHistory, get_db
+from nba_predictor.models import Game, Prediction, PredictionFactor, TeamHistory, get_db
 
 logger = get_logger(__name__)
 
@@ -34,7 +34,7 @@ class ClaudePredictor:
         logger.info("Claude predictor initialized")
 
     def predict_game(
-        self, home_team: str, away_team: str, game_date: date
+        self, home_team: str, away_team: str, game_date: date, save_to_db: bool = True
     ) -> Dict[str, Any]:
         """Predict outcome of a specific game.
 
@@ -42,6 +42,7 @@ class ClaudePredictor:
             home_team: Home team name
             away_team: Away team name
             game_date: Date of the game
+            save_to_db: Whether to save prediction to database (default: True)
 
         Returns:
             Prediction dictionary with winner, confidence, and analysis
@@ -66,6 +67,16 @@ class ClaudePredictor:
 
             # Get prediction from Claude
             prediction = self._get_claude_prediction(context)
+
+            # Save to database if requested
+            if save_to_db:
+                prediction_id = self._save_prediction(
+                    home_team=home_team,
+                    away_team=away_team,
+                    game_date=game_date,
+                    prediction=prediction,
+                )
+                prediction["prediction_id"] = prediction_id
 
             logger.info(
                 "Prediction complete",
@@ -292,6 +303,98 @@ Provide your prediction in the following JSON format:
             logger.error("Claude API call failed", error=str(e))
             raise PredictionError(f"Claude API error: {e}")
 
+    def _save_prediction(
+        self,
+        home_team: str,
+        away_team: str,
+        game_date: date,
+        prediction: Dict[str, Any],
+    ) -> int:
+        """Save prediction to database.
+
+        Args:
+            home_team: Home team name
+            away_team: Away team name
+            game_date: Date of the game
+            prediction: Prediction dictionary from Claude
+
+        Returns:
+            ID of the saved prediction
+
+        Raises:
+            PredictionError: If saving fails
+        """
+        try:
+            with get_db() as db:
+                # Get game_id and season if available
+                game = (
+                    db.query(Game)
+                    .filter(
+                        Game.date == game_date,
+                        Game.home_name == home_team,
+                        Game.away_name == away_team,
+                    )
+                    .first()
+                )
+
+                game_id = game.id2 if game else None
+                season = game.season if game else None
+
+                # Create prediction record
+                prediction_record = Prediction(
+                    game_id=game_id,
+                    game_date=game_date,
+                    season=season,
+                    home_team=home_team,
+                    away_team=away_team,
+                    predicted_winner=prediction["predicted_winner"],
+                    confidence=Decimal(str(prediction["confidence"])),
+                    predicted_home_score=prediction["predicted_score"]["home"],
+                    predicted_away_score=prediction["predicted_score"]["away"],
+                    analysis=prediction["analysis"],
+                    created_at=datetime.utcnow(),
+                    model_version="claude-sonnet-4-5-20250929",
+                )
+
+                db.add(prediction_record)
+                db.flush()  # Get the ID without committing
+
+                # Create factor records
+                for idx, factor in enumerate(prediction.get("key_factors", [])):
+                    factor_record = PredictionFactor(
+                        prediction_id=prediction_record.id,
+                        factor=factor,
+                        order=idx,
+                    )
+                    db.add(factor_record)
+
+                # Check if game has results and update prediction accuracy
+                if game and game.home_point is not None and game.away_point is not None:
+                    actual_winner = (
+                        home_team if game.home_point > game.away_point else away_team
+                    )
+                    prediction_record.actual_winner = actual_winner
+                    prediction_record.actual_home_score = game.home_point
+                    prediction_record.actual_away_score = game.away_point
+                    prediction_record.is_correct = (
+                        prediction["predicted_winner"] == actual_winner
+                    )
+
+                db.commit()
+
+                logger.info(
+                    "Prediction saved to database",
+                    prediction_id=prediction_record.id,
+                    home=home_team,
+                    away=away_team,
+                )
+
+                return prediction_record.id
+
+        except Exception as e:
+            logger.error("Failed to save prediction", error=str(e), exc_info=True)
+            raise PredictionError(f"Failed to save prediction: {e}")
+
     def analyze_prediction_accuracy(self, season: str) -> Dict[str, Any]:
         """Analyze prediction accuracy for a season.
 
@@ -317,7 +420,7 @@ Provide your prediction in the following JSON format:
             for game in games[:50]:  # Limit for cost reasons
                 try:
                     prediction = self.predict_game(
-                        game.home_name, game.away_name, game.date
+                        game.home_name, game.away_name, game.date, save_to_db=False
                     )
 
                     # Determine actual winner
