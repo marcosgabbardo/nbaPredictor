@@ -78,11 +78,12 @@ class RotoWireScraper:
         )
         return session
 
-    def _get_page(self, url: str) -> BeautifulSoup:
+    def _get_page(self, url: str, save_debug: bool = False) -> BeautifulSoup:
         """Fetch and parse a page with error handling.
 
         Args:
             url: URL to fetch
+            save_debug: If True, save raw response to debug file
 
         Returns:
             Parsed BeautifulSoup object
@@ -120,11 +121,43 @@ class RotoWireScraper:
                 allow_redirects=True
             )
 
-            logger.debug("Response received", status_code=response.status_code, content_length=len(response.text))
-
             response.raise_for_status()
 
-            return BeautifulSoup(response.text, "html.parser")
+            # Ensure proper encoding - cloudscraper should handle this, but let's be explicit
+            # If response.encoding is None or incorrect, set it to utf-8
+            if response.encoding is None or response.encoding.lower() not in ['utf-8', 'utf8']:
+                response.encoding = 'utf-8'
+
+            logger.debug(
+                "Response received",
+                status_code=response.status_code,
+                content_length=len(response.content),
+                encoding=response.encoding,
+                apparent_encoding=response.apparent_encoding
+            )
+
+            # Get text with proper encoding
+            html_text = response.text
+
+            # Verify we got actual HTML content, not binary garbage
+            if not html_text or len(html_text) < 100:
+                raise RotoWireScraperError(f"Response appears to be invalid or too short: {len(html_text)} chars")
+
+            # Save raw response for debugging if requested
+            if save_debug:
+                try:
+                    with open("/tmp/rotowire_raw_response.html", "w", encoding="utf-8", errors="replace") as f:
+                        f.write(html_text)
+                    logger.info(
+                        "DEBUG: Saved raw response",
+                        path="/tmp/rotowire_raw_response.html",
+                        size=len(html_text),
+                        first_200=html_text[:200].encode('unicode_escape').decode('ascii')
+                    )
+                except Exception as e:
+                    logger.warning("Could not save raw response", error=str(e))
+
+            return BeautifulSoup(html_text, "html.parser")
 
         except Exception as e:
             logger.error("Request failed", url=url, error=str(e), error_type=type(e).__name__)
@@ -149,8 +182,8 @@ class RotoWireScraper:
 
         logger.info("Starting lineup import", target_date=target_date, scrape_date=scrape_date)
 
-        # Fetch lineups page
-        lineups_page = self._get_page(self.lineups_url)
+        # Fetch lineups page (with debug enabled to save raw response)
+        lineups_page = self._get_page(self.lineups_url, save_debug=True)
 
         # Delete existing lineups for this scrape date and game date combination
         with get_db() as db:
@@ -170,11 +203,21 @@ class RotoWireScraper:
 
         # DEBUG: Save HTML to file for inspection
         try:
-            with open("/tmp/rotowire_debug.html", "w", encoding="utf-8") as f:
-                f.write(lineups_page.prettify())
-            logger.info("DEBUG: Saved HTML to /tmp/rotowire_debug.html")
+            debug_path = "/tmp/rotowire_debug.html"
+
+            # Save the prettified HTML
+            with open(debug_path, "w", encoding="utf-8", errors="replace") as f:
+                # Use prettify() which returns a proper unicode string
+                html_content = lineups_page.prettify()
+                f.write(html_content)
+
+            logger.info(
+                "DEBUG: Saved HTML to /tmp/rotowire_debug.html",
+                size_chars=len(html_content),
+                first_100_chars=html_content[:100]
+            )
         except Exception as e:
-            logger.warning("Could not save debug HTML", error=str(e))
+            logger.warning("Could not save debug HTML", error=str(e), exc_info=True)
 
         # DEBUG: Try multiple selector patterns
         logger.info("DEBUG: Testing different selector patterns...")
