@@ -37,9 +37,11 @@ This is a **complete revitalization** of the NBA Predictor project, rebuilt from
 
 ### Data Collection
 - **Automated Web Scraping** from Basketball Reference
+- **Image-Based Lineup Scraper** - NEW! Extract lineup data from screenshots using Claude Vision API
 - **Game Data**: Scores, quarter-by-quarter breakdowns, basic stats
 - **Advanced Metrics**: Pace, eFG%, TOV%, ORB%, FT/FGA, ORtg
 - **Play-by-Play Data**: Detailed game progression
+- **Daily Lineups**: Starting lineups and injury reports
 - **Retry Logic**: Automatic retry on failures with exponential backoff
 - **Rate Limiting**: Respectful scraping with delays
 
@@ -233,14 +235,41 @@ python3 -m nba_predictor.cli scrape-games 2024 october november december january
 python3 -m nba_predictor.cli scrape-pbp 2024-01-15
 ```
 
-### 2. Calculate Statistics
+### 2. Import Lineups from Screenshots (NEW!)
+
+The new image-based lineup scraper extracts lineup data from screenshots using Claude Vision API.
+This is more reliable than HTML scraping and works with any lineup source (RotoWire, Basketball Monster, etc.).
+
+```bash
+# Import lineups from a single screenshot
+python import_lineup_from_image.py lineup_screenshot.png
+
+# Import lineups for a specific date
+python import_lineup_from_image.py lineup_screenshot.png 2024-12-05
+
+# Import from multiple screenshots
+python import_lineup_from_image.py game1.png game2.png game3.png
+
+# Test the scraper without saving to database
+python test_image_scraper.py lineup_screenshot.png
+```
+
+**How to use:**
+1. Take a screenshot of NBA lineups from RotoWire, Basketball Monster, or any source
+2. Save as PNG or JPEG
+3. Run the import script with your screenshot path
+4. Data is automatically extracted and saved to the database
+
+See [docs/IMAGE_LINEUP_SCRAPER.md](docs/IMAGE_LINEUP_SCRAPER.md) for detailed documentation.
+
+### 3. Calculate Statistics
 
 ```bash
 # Generate team statistics for a season
 python3 -m nba_predictor.cli calculate-stats 2024
 ```
 
-### 3. Make Predictions
+### 4. Make Predictions
 
 ```bash
 # Predict a specific game
