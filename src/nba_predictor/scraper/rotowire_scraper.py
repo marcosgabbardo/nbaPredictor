@@ -168,9 +168,57 @@ class RotoWireScraper:
 
         lineups_imported = 0
 
+        # DEBUG: Save HTML to file for inspection
+        try:
+            with open("/tmp/rotowire_debug.html", "w", encoding="utf-8") as f:
+                f.write(lineups_page.prettify())
+            logger.info("DEBUG: Saved HTML to /tmp/rotowire_debug.html")
+        except Exception as e:
+            logger.warning("Could not save debug HTML", error=str(e))
+
+        # DEBUG: Try multiple selector patterns
+        logger.info("DEBUG: Testing different selector patterns...")
+
+        # Pattern 1: Exact class match with dict
+        pattern1 = lineups_page.find_all("div", {"class": "lineup is-nba"})
+        logger.info("DEBUG Pattern 1: dict {'class': 'lineup is-nba'}", count=len(pattern1))
+
+        # Pattern 2: List of classes
+        pattern2 = lineups_page.find_all("div", class_=["lineup", "is-nba"])
+        logger.info("DEBUG Pattern 2: list ['lineup', 'is-nba']", count=len(pattern2))
+
+        # Pattern 3: CSS selector
+        pattern3 = lineups_page.select("div.lineup.is-nba")
+        logger.info("DEBUG Pattern 3: CSS selector 'div.lineup.is-nba'", count=len(pattern3))
+
+        # Pattern 4: Just "lineup" class
+        pattern4 = lineups_page.find_all("div", class_="lineup")
+        logger.info("DEBUG Pattern 4: class='lineup'", count=len(pattern4))
+
+        # Pattern 5: Contains "lineup" and "nba"
+        pattern5 = lineups_page.find_all("div", class_=lambda x: x and isinstance(x, list) and "lineup" in x and "is-nba" in x)
+        logger.info("DEBUG Pattern 5: lambda with list check", count=len(pattern5))
+
+        # Show all divs that have "lineup" in any class
+        all_lineup_divs = lineups_page.find_all("div", class_=lambda x: x and "lineup" in str(x).lower())
+        logger.info("DEBUG: All divs with 'lineup' in class", count=len(all_lineup_divs))
+
+        # Show first few class combinations
+        seen_classes = set()
+        for div in all_lineup_divs[:20]:
+            classes = div.get('class', [])
+            if classes:
+                class_str = " ".join(sorted(classes))
+                if class_str not in seen_classes:
+                    seen_classes.add(class_str)
+                    logger.info("DEBUG: Found div with classes", classes=class_str)
+
         # Find all lineup boxes (game cards)
-        # The class is "lineup is-nba"
-        lineup_boxes = lineups_page.find_all("div", {"class": "lineup is-nba"})
+        # Try CSS selector first as it's most reliable
+        lineup_boxes = lineups_page.select("div.lineup.is-nba")
+        if not lineup_boxes:
+            # Fallback to find_all with lambda
+            lineup_boxes = lineups_page.find_all("div", class_=lambda x: x and isinstance(x, list) and "lineup" in x and "is-nba" in x)
 
         logger.info("Found lineup boxes", count=len(lineup_boxes))
 
