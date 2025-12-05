@@ -9,6 +9,7 @@ from nba_predictor.core.logger import get_logger, setup_logging
 from nba_predictor.models import init_db, create_tables
 from nba_predictor.prediction.claude_predictor import ClaudePredictor, PredictionError
 from nba_predictor.scraper.scraper import BasketballReferenceScraper, ScraperError
+from nba_predictor.scraper.rotowire_scraper import RotoWireScraper, RotoWireScraperError
 from nba_predictor.utils.statistics import StatisticsCalculator
 
 logger = get_logger(__name__)
@@ -24,6 +25,7 @@ class NBA_Predictor_CLI:
         init_db()
 
         self.scraper = BasketballReferenceScraper()
+        self.rotowire_scraper = RotoWireScraper()
         self.stats_calculator = StatisticsCalculator()
 
     def init_database(self) -> None:
@@ -93,6 +95,31 @@ class NBA_Predictor_CLI:
         except ScraperError as e:
             print(f"❌ Failed to scrape play-by-play: {e}")
             logger.error("Play-by-play scraping failed", error=str(e), exc_info=True)
+            sys.exit(1)
+
+    def scrape_lineups(self, date_str: Optional[str] = None) -> None:
+        """Scrape daily lineups and injury status from RotoWire.
+
+        Args:
+            date_str: Date in YYYY-MM-DD format (defaults to today)
+        """
+        try:
+            target_date = None
+            if date_str:
+                target_date = datetime.strptime(date_str, "%Y-%m-%d").date()
+                print(f"🏀 Scraping lineups for {target_date}...")
+            else:
+                print("🏀 Scraping today's lineups...")
+
+            count = self.rotowire_scraper.import_daily_lineups(target_date)
+            print(f"✅ Imported {count} lineup entries!")
+
+        except ValueError:
+            print(f"❌ Invalid date format: {date_str}. Use YYYY-MM-DD")
+            sys.exit(1)
+        except RotoWireScraperError as e:
+            print(f"❌ Failed to scrape lineups: {e}")
+            logger.error("Lineup scraping failed", error=str(e), exc_info=True)
             sys.exit(1)
 
     def calculate_statistics(self, season: str) -> None:
@@ -236,6 +263,12 @@ Examples:
   # Scrape games and play-by-play data
   python -m nba_predictor.cli scrape-games 2024 january february --scrape-pbp
 
+  # Scrape daily lineups and injury status (today)
+  python -m nba_predictor.cli scrape-lineups
+
+  # Scrape lineups for a specific date
+  python -m nba_predictor.cli scrape-lineups 2024-01-15
+
   # Calculate statistics
   python -m nba_predictor.cli calculate-stats 2024
 
@@ -274,6 +307,16 @@ Examples:
     pbp_parser = subparsers.add_parser("scrape-pbp", help="Scrape play-by-play data")
     pbp_parser.add_argument("date", help="Date in YYYY-MM-DD format")
 
+    # Scrape lineups command
+    lineups_parser = subparsers.add_parser(
+        "scrape-lineups", help="Scrape daily lineups and injury status from RotoWire"
+    )
+    lineups_parser.add_argument(
+        "date",
+        nargs="?",
+        help="Date in YYYY-MM-DD format (optional, defaults to today)",
+    )
+
     # Calculate stats command
     stats_parser = subparsers.add_parser("calculate-stats", help="Calculate team statistics")
     stats_parser.add_argument("season", help="NBA season year (e.g., 2024)")
@@ -308,6 +351,8 @@ Examples:
         cli.scrape_games(args.season, args.months, args.scrape_pbp)
     elif args.command == "scrape-pbp":
         cli.scrape_play_by_play(args.date)
+    elif args.command == "scrape-lineups":
+        cli.scrape_lineups(args.date)
     elif args.command == "calculate-stats":
         cli.calculate_statistics(args.season)
     elif args.command == "predict":

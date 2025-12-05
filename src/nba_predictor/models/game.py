@@ -1,10 +1,10 @@
 """Game-related database models."""
 
-from datetime import date
+from datetime import date, datetime
 from decimal import Decimal
 from typing import Optional
 
-from sqlalchemy import Date, Integer, Numeric, String, Text
+from sqlalchemy import Boolean, Date, DateTime, Integer, Numeric, String, Text
 from sqlalchemy.orm import Mapped, mapped_column
 
 from nba_predictor.models.database import Base
@@ -82,3 +82,64 @@ class PlayByPlay(Base):
 
     def __repr__(self) -> str:
         return f"<PlayByPlay(game='{self.game_id}', quarter={self.quarter}, duration={self.duration})>"
+
+
+class PlayerGameStats(Base):
+    """Player game statistics model."""
+
+    __tablename__ = "nba_player_game_stats"
+
+    id: Mapped[int] = mapped_column(Integer, primary_key=True, autoincrement=True)
+    game_id: Mapped[str] = mapped_column(String(50), nullable=False, index=True)
+    game_date: Mapped[date] = mapped_column(Date, nullable=False, index=True)
+    season: Mapped[str] = mapped_column(String(10), nullable=False, index=True)
+    team_name: Mapped[str] = mapped_column(String(100), nullable=False, index=True)
+    player_name: Mapped[str] = mapped_column(String(100), nullable=False, index=True)
+    is_starter: Mapped[bool] = mapped_column(Boolean, default=False)
+
+    # Playing time
+    minutes_played: Mapped[Optional[str]] = mapped_column(String(10))
+
+    # Shooting stats
+    field_goals: Mapped[int] = mapped_column(Integer, default=0)
+    field_goal_attempts: Mapped[int] = mapped_column(Integer, default=0)
+    field_goal_percentage: Mapped[Optional[Decimal]] = mapped_column(Numeric(5, 3))
+
+    # Three-point stats
+    three_pointers: Mapped[int] = mapped_column(Integer, default=0)
+    three_point_attempts: Mapped[int] = mapped_column(Integer, default=0)
+    three_point_percentage: Mapped[Optional[Decimal]] = mapped_column(Numeric(5, 3))
+
+    # Free throw stats
+    free_throws: Mapped[int] = mapped_column(Integer, default=0)
+    free_throw_attempts: Mapped[int] = mapped_column(Integer, default=0)
+    free_throw_percentage: Mapped[Optional[Decimal]] = mapped_column(Numeric(5, 3))
+
+    # Rebounds
+    offensive_rebounds: Mapped[int] = mapped_column(Integer, default=0)
+    defensive_rebounds: Mapped[int] = mapped_column(Integer, default=0)
+    total_rebounds: Mapped[int] = mapped_column(Integer, default=0)
+
+    # Other stats
+    assists: Mapped[int] = mapped_column(Integer, default=0)
+    steals: Mapped[int] = mapped_column(Integer, default=0)
+    blocks: Mapped[int] = mapped_column(Integer, default=0)
+    turnovers: Mapped[int] = mapped_column(Integer, default=0)
+    personal_fouls: Mapped[int] = mapped_column(Integer, default=0)
+    points: Mapped[int] = mapped_column(Integer, default=0)
+
+    # Plus/minus
+    plus_minus: Mapped[Optional[str]] = mapped_column(String(10))
+
+    # Timestamps
+    created_at: Mapped[datetime] = mapped_column(DateTime, default=datetime.now)
+    updated_at: Mapped[datetime] = mapped_column(
+        DateTime, default=datetime.now, onupdate=datetime.now
+    )
+
+    def __repr__(self) -> str:
+        return (
+            f"<PlayerGameStats(game='{self.game_id}', "
+            f"player='{self.player_name}', team='{self.team_name}', "
+            f"pts={self.points})>"
+        )

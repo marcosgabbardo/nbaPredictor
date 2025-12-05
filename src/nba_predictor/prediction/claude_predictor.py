@@ -9,7 +9,7 @@ from anthropic import Anthropic
 
 from nba_predictor.core.config import get_settings
 from nba_predictor.core.logger import get_logger
-from nba_predictor.models import Game, Prediction, PredictionFactor, TeamHistory, get_db
+from nba_predictor.models import DailyLineup, Game, Prediction, PredictionFactor, TeamHistory, get_db
 
 logger = get_logger(__name__)
 
@@ -60,9 +60,13 @@ class ClaudePredictor:
             if not home_stats or not away_stats:
                 raise PredictionError("Insufficient data for prediction")
 
+            # Gather lineup information
+            home_lineup = self._get_lineup_info(home_team, game_date)
+            away_lineup = self._get_lineup_info(away_team, game_date)
+
             # Prepare context for Claude
             context = self._prepare_prediction_context(
-                home_team, away_team, home_stats, away_stats
+                home_team, away_team, home_stats, away_stats, home_lineup, away_lineup
             )
 
             # Get prediction from Claude
@@ -203,12 +207,81 @@ class ClaudePredictor:
 
             return stats
 
+    def _get_lineup_info(
+        self, team_name: str, game_date: date
+    ) -> Optional[Dict[str, Any]]:
+        """Get lineup and injury information for a team on a specific date.
+
+        Args:
+            team_name: Team name
+            game_date: Date of the game
+
+        Returns:
+            Dictionary with lineup information or None if no data available
+        """
+        with get_db() as db:
+            # Get the most recent lineup data for this team and date
+            # We look for data scraped on the same day or the day before
+            lineups = (
+                db.query(DailyLineup)
+                .filter(
+                    DailyLineup.team_name == team_name,
+                    DailyLineup.game_date == game_date,
+                )
+                .all()
+            )
+
+            if not lineups:
+                return None
+
+            # Organize lineup data by status
+            starters = []
+            out = []
+            questionable = []
+            gtd = []
+            other = []
+
+            for lineup in lineups:
+                player_info = {
+                    "name": lineup.player_name,
+                    "position": lineup.position,
+                }
+
+                if lineup.injury_description:
+                    player_info["injury"] = lineup.injury_description
+
+                if lineup.status == "Starter":
+                    starters.append(player_info)
+                elif lineup.status == "OUT":
+                    out.append(player_info)
+                elif lineup.status in ["Questionable", "Q"]:
+                    questionable.append(player_info)
+                elif lineup.status in ["GTD", "Game-Time Decision"]:
+                    gtd.append(player_info)
+                else:
+                    other.append(player_info)
+
+            lineup_info = {
+                "has_data": True,
+                "starters": starters,
+                "injuries": {
+                    "out": out,
+                    "questionable": questionable,
+                    "gtd": gtd,
+                    "other": other,
+                },
+            }
+
+            return lineup_info
+
     def _prepare_prediction_context(
         self,
         home_team: str,
         away_team: str,
         home_stats: Dict[str, Any],
         away_stats: Dict[str, Any],
+        home_lineup: Optional[Dict[str, Any]] = None,
+        away_lineup: Optional[Dict[str, Any]] = None,
     ) -> str:
         """Prepare context for Claude prediction.
 
@@ -217,6 +290,8 @@ class ClaudePredictor:
             away_team: Away team name
             home_stats: Home team statistics
             away_stats: Away team statistics
+            home_lineup: Home team lineup and injury info (optional)
+            away_lineup: Away team lineup and injury info (optional)
 
         Returns:
             Formatted context string
@@ -230,13 +305,39 @@ HOME TEAM STATISTICS ({home_team}):
 
 AWAY TEAM STATISTICS ({away_team}):
 {json.dumps(away_stats, indent=2)}
+"""
 
+        # Add lineup information if available
+        if home_lineup:
+            context += f"""
+HOME TEAM LINEUP & INJURY REPORT ({home_team}):
+{json.dumps(home_lineup, indent=2)}
+"""
+
+        if away_lineup:
+            context += f"""
+AWAY TEAM LINEUP & INJURY REPORT ({away_team}):
+{json.dumps(away_lineup, indent=2)}
+"""
+
+        lineup_analysis = ""
+        if home_lineup or away_lineup:
+            lineup_analysis = """
+6. Player availability and lineup strength (consider impact of injuries, key players out, and starting lineup quality)"""
+
+        context += f"""
 Please analyze this matchup considering:
 1. Recent form and momentum (win streaks, recent performance)
 2. Offensive and defensive efficiency (points scored vs allowed)
 3. Advanced metrics (pace, eFG%, turnover rate, offensive rating)
 4. Rest factors (days since last game)
-5. Home court advantage
+5. Home court advantage{lineup_analysis}
+
+IMPORTANT: If lineup/injury data is provided, carefully consider:
+- The impact of players listed as OUT on team performance
+- The uncertainty of players listed as Questionable or GTD (Game-Time Decision)
+- The quality and experience of the expected starting lineup
+- How key injuries might affect team chemistry and rotations
 
 Provide your prediction in the following JSON format:
 {{
