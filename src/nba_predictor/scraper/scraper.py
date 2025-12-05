@@ -12,7 +12,7 @@ from urllib3.util.retry import Retry
 
 from nba_predictor.core.config import get_settings
 from nba_predictor.core.logger import get_logger
-from nba_predictor.models import Game, PlayByPlay, get_db
+from nba_predictor.models import Game, PlayByPlay, PlayerGameStats, get_db
 
 logger = get_logger(__name__)
 
@@ -198,6 +198,24 @@ class BasketballReferenceScraper:
                         home=game_data["home_name"],
                         away=game_data["away_name"],
                     )
+
+                    # Import player stats if game has been played (has game_id)
+                    if game_data.get("id2"):
+                        try:
+                            player_stats_count = self.import_player_stats(
+                                game_data["id2"], game_data["date"], season
+                            )
+                            logger.info(
+                                "Imported player stats",
+                                game_id=game_data["id2"],
+                                count=player_stats_count,
+                            )
+                        except Exception as e:
+                            logger.warning(
+                                "Failed to import player stats",
+                                game_id=game_data.get("id2"),
+                                error=str(e),
+                            )
 
                     # Rate limiting
                     time.sleep(0.5)
@@ -572,4 +590,225 @@ class BasketballReferenceScraper:
             }
 
         except (ValueError, IndexError):
+            return None
+
+    def import_player_stats(self, game_id: str, game_date: date, season: str) -> int:
+        """Import player statistics for a specific game.
+
+        Args:
+            game_id: Game ID
+            game_date: Date of the game
+            season: Season year
+
+        Returns:
+            Number of player stats imported
+
+        Raises:
+            ScraperError: If scraping fails
+        """
+        logger.info("Starting player stats import", game_id=game_id)
+
+        # Delete existing player stats for this game
+        with get_db() as db:
+            deleted = (
+                db.query(PlayerGameStats)
+                .filter(PlayerGameStats.game_id == game_id)
+                .delete(synchronize_session=False)
+            )
+            logger.debug("Deleted existing player stats", count=deleted, game_id=game_id)
+
+        # Fetch box score page
+        box_score_url = f"{self.base_url}/boxscores/{game_id}.html"
+        box_score_page = self._get_page(box_score_url)
+
+        stats_imported = 0
+
+        # Get team names from the game
+        with get_db() as db:
+            game = db.query(Game).filter(Game.id2 == game_id).first()
+            if not game:
+                logger.warning("Game not found", game_id=game_id)
+                return 0
+
+            away_team = game.away_name
+            home_team = game.home_name
+
+        # Extract team abbreviations from the page for table IDs
+        # Basketball Reference uses team abbreviations in table IDs (e.g., "box-LAL-game-basic")
+        team_links = box_score_page.find_all("a", href=lambda x: x and "/teams/" in x)
+        team_abbrevs = []
+        for link in team_links[:2]:  # First two team links are the playing teams
+            abbrev = link["href"].split("/teams/")[1].split("/")[0]
+            team_abbrevs.append(abbrev)
+
+        if len(team_abbrevs) != 2:
+            logger.warning("Could not find team abbreviations", game_id=game_id)
+            return 0
+
+        # Process away team stats (first team)
+        away_stats = self._parse_player_stats_table(
+            box_score_page, team_abbrevs[0], away_team, game_id, game_date, season
+        )
+        for stat in away_stats:
+            with get_db() as db:
+                player_stat = PlayerGameStats(**stat)
+                db.add(player_stat)
+                stats_imported += 1
+
+        # Process home team stats (second team)
+        home_stats = self._parse_player_stats_table(
+            box_score_page, team_abbrevs[1], home_team, game_id, game_date, season
+        )
+        for stat in home_stats:
+            with get_db() as db:
+                player_stat = PlayerGameStats(**stat)
+                db.add(player_stat)
+                stats_imported += 1
+
+        logger.info("Player stats import completed", game_id=game_id, stats_imported=stats_imported)
+        return stats_imported
+
+    def _parse_player_stats_table(
+        self,
+        soup: BeautifulSoup,
+        team_abbrev: str,
+        team_name: str,
+        game_id: str,
+        game_date: date,
+        season: str,
+    ) -> List[Dict[str, Any]]:
+        """Parse player statistics table for a team.
+
+        Args:
+            soup: Parsed box score HTML
+            team_abbrev: Team abbreviation (e.g., "LAL")
+            team_name: Full team name
+            game_id: Game ID
+            game_date: Date of the game
+            season: Season year
+
+        Returns:
+            List of player statistics dictionaries
+        """
+        stats_list = []
+
+        # Find the basic stats table for this team
+        table_id = f"box-{team_abbrev}-game-basic"
+        table = soup.find("table", {"id": table_id})
+
+        if not table:
+            logger.warning("Player stats table not found", team=team_name, table_id=table_id)
+            return stats_list
+
+        tbody = table.find("tbody")
+        if not tbody:
+            return stats_list
+
+        is_starter = True  # First 5 players are starters
+
+        for idx, row in enumerate(tbody.find_all("tr")):
+            # Check if this is the "Reserves" row separator
+            if row.get("class") and "thead" in row.get("class"):
+                is_starter = False
+                continue
+
+            # Skip team total rows
+            if row.get("class") and "full_table" not in row.get("class"):
+                continue
+
+            try:
+                player_stat = self._extract_player_stat(
+                    row, team_name, game_id, game_date, season, is_starter
+                )
+                if player_stat:
+                    stats_list.append(player_stat)
+            except Exception as e:
+                logger.debug("Failed to parse player stat", error=str(e), team=team_name)
+                continue
+
+        return stats_list
+
+    def _extract_player_stat(
+        self,
+        row: Any,
+        team_name: str,
+        game_id: str,
+        game_date: date,
+        season: str,
+        is_starter: bool,
+    ) -> Optional[Dict[str, Any]]:
+        """Extract player statistics from HTML row.
+
+        Args:
+            row: BeautifulSoup row element
+            team_name: Team name
+            game_id: Game ID
+            game_date: Date of the game
+            season: Season year
+            is_starter: Whether player is a starter
+
+        Returns:
+            Dictionary of player statistics or None if invalid
+        """
+        cells = row.find_all(["th", "td"])
+        if len(cells) < 20:  # Basic box score has ~20 columns
+            return None
+
+        # Get player name from first cell
+        player_link = cells[0].find("a")
+        if not player_link:
+            return None
+
+        player_name = player_link.text.strip()
+
+        # Check if player did not play (DNP)
+        mp_cell = cells[1]  # Minutes Played
+        if mp_cell.text.strip() in ["Did Not Play", "Did Not Dress", "Not With Team", ""]:
+            return None
+
+        try:
+            # Helper function to safely get cell text as int
+            def get_int(cell, default=0):
+                text = cell.text.strip()
+                return int(text) if text and text.isdigit() else default
+
+            # Helper function to safely get cell text as float
+            def get_float(cell, default=None):
+                text = cell.text.strip()
+                try:
+                    return float(text) if text else default
+                except ValueError:
+                    return default
+
+            # Extract statistics
+            return {
+                "game_id": game_id,
+                "game_date": game_date,
+                "season": season,
+                "team_name": team_name,
+                "player_name": player_name,
+                "is_starter": is_starter,
+                "minutes_played": cells[1].text.strip() or None,
+                "field_goals": get_int(cells[2]),
+                "field_goal_attempts": get_int(cells[3]),
+                "field_goal_percentage": get_float(cells[4]),
+                "three_pointers": get_int(cells[5]),
+                "three_point_attempts": get_int(cells[6]),
+                "three_point_percentage": get_float(cells[7]),
+                "free_throws": get_int(cells[8]),
+                "free_throw_attempts": get_int(cells[9]),
+                "free_throw_percentage": get_float(cells[10]),
+                "offensive_rebounds": get_int(cells[11]),
+                "defensive_rebounds": get_int(cells[12]),
+                "total_rebounds": get_int(cells[13]),
+                "assists": get_int(cells[14]),
+                "steals": get_int(cells[15]),
+                "blocks": get_int(cells[16]),
+                "turnovers": get_int(cells[17]),
+                "personal_fouls": get_int(cells[18]),
+                "points": get_int(cells[19]),
+                "plus_minus": cells[20].text.strip() if len(cells) > 20 else None,
+            }
+        except (ValueError, IndexError) as e:
+            logger.debug("Failed to extract player stat", error=str(e), player=player_name)
             return None

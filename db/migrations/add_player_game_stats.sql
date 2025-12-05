@@ -1,0 +1,41 @@
+-- Migration: Add player game statistics table
+-- Description: Store individual player statistics for each game
+-- Date: 2025-12-05
+
+CREATE TABLE IF NOT EXISTS nba_player_game_stats (
+    id INT AUTO_INCREMENT PRIMARY KEY,
+    game_id VARCHAR(50) NOT NULL,
+    game_date DATE NOT NULL,
+    season VARCHAR(10) NOT NULL,
+    team_name VARCHAR(100) NOT NULL,
+    player_name VARCHAR(100) NOT NULL,
+    is_starter BOOLEAN DEFAULT FALSE,
+    minutes_played VARCHAR(10),
+    field_goals INT DEFAULT 0,
+    field_goal_attempts INT DEFAULT 0,
+    field_goal_percentage DECIMAL(5,3),
+    three_pointers INT DEFAULT 0,
+    three_point_attempts INT DEFAULT 0,
+    three_point_percentage DECIMAL(5,3),
+    free_throws INT DEFAULT 0,
+    free_throw_attempts INT DEFAULT 0,
+    free_throw_percentage DECIMAL(5,3),
+    offensive_rebounds INT DEFAULT 0,
+    defensive_rebounds INT DEFAULT 0,
+    total_rebounds INT DEFAULT 0,
+    assists INT DEFAULT 0,
+    steals INT DEFAULT 0,
+    blocks INT DEFAULT 0,
+    turnovers INT DEFAULT 0,
+    personal_fouls INT DEFAULT 0,
+    points INT DEFAULT 0,
+    plus_minus VARCHAR(10),
+    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+    INDEX idx_game_id (game_id),
+    INDEX idx_game_date (game_date),
+    INDEX idx_player_name (player_name),
+    INDEX idx_team_name (team_name),
+    INDEX idx_season (season),
+    UNIQUE KEY unique_player_game (game_id, player_name, team_name)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
