@@ -9,7 +9,7 @@ from nba_predictor.core.logger import get_logger, setup_logging
 from nba_predictor.models import init_db, create_tables
 from nba_predictor.prediction.claude_predictor import ClaudePredictor, PredictionError
 from nba_predictor.scraper.scraper import BasketballReferenceScraper, ScraperError
-from nba_predictor.scraper.rotowire_scraper import RotoWireScraper, RotoWireScraperError
+from nba_predictor.scraper.basketballmonster_scraper import BasketballMonsterScraper, BasketballMonsterScraperError
 from nba_predictor.utils.statistics import StatisticsCalculator
 
 logger = get_logger(__name__)
@@ -25,7 +25,7 @@ class NBA_Predictor_CLI:
         init_db()
 
         self.scraper = BasketballReferenceScraper()
-        self.rotowire_scraper = RotoWireScraper()
+        self.lineups_scraper = BasketballMonsterScraper()
         self.stats_calculator = StatisticsCalculator()
 
     def init_database(self) -> None:
@@ -98,7 +98,7 @@ class NBA_Predictor_CLI:
             sys.exit(1)
 
     def scrape_lineups(self, date_str: Optional[str] = None) -> None:
-        """Scrape daily lineups and injury status from RotoWire.
+        """Scrape daily lineups and injury status from Basketball Monster.
 
         Args:
             date_str: Date in YYYY-MM-DD format (defaults to today)
@@ -111,13 +111,13 @@ class NBA_Predictor_CLI:
             else:
                 print("🏀 Scraping today's lineups...")
 
-            count = self.rotowire_scraper.import_daily_lineups(target_date)
+            count = self.lineups_scraper.import_daily_lineups(target_date)
             print(f"✅ Imported {count} lineup entries!")
 
         except ValueError:
             print(f"❌ Invalid date format: {date_str}. Use YYYY-MM-DD")
             sys.exit(1)
-        except RotoWireScraperError as e:
+        except BasketballMonsterScraperError as e:
             print(f"❌ Failed to scrape lineups: {e}")
             logger.error("Lineup scraping failed", error=str(e), exc_info=True)
             sys.exit(1)
@@ -309,7 +309,7 @@ Examples:
 
     # Scrape lineups command
     lineups_parser = subparsers.add_parser(
-        "scrape-lineups", help="Scrape daily lineups and injury status from RotoWire"
+        "scrape-lineups", help="Scrape daily lineups and injury status from Basketball Monster"
     )
     lineups_parser.add_argument(
         "date",
