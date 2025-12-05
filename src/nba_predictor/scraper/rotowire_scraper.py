@@ -168,6 +168,22 @@ class RotoWireScraper:
 
         lineups_imported = 0
 
+        # DEBUG: Save HTML to file for inspection
+        try:
+            with open("/tmp/rotowire_debug.html", "w") as f:
+                f.write(lineups_page.prettify())
+            logger.info("DEBUG: Saved HTML to /tmp/rotowire_debug.html")
+        except Exception as e:
+            logger.warning("Could not save debug HTML", error=str(e))
+
+        # DEBUG: Try different search patterns
+        all_divs_with_lineup = lineups_page.find_all("div", class_=lambda x: x and "lineup" in str(x).lower())
+        logger.info("DEBUG: All divs with 'lineup' in class", count=len(all_divs_with_lineup))
+
+        # Show first few class names
+        for i, div in enumerate(all_divs_with_lineup[:5]):
+            logger.info(f"DEBUG: Div {i+1} classes", classes=div.get('class', []))
+
         # Find all lineup boxes (game cards)
         # The class is "lineup is-nba", so we need to search by class containing "lineup"
         lineup_boxes = lineups_page.find_all("div", class_=lambda x: x and "lineup" in x and "is-nba" in x)
