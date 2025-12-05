@@ -25,6 +25,40 @@ class RotoWireScraperError(Exception):
 class RotoWireScraper:
     """Scraper for RotoWire NBA lineups and injury reports."""
 
+    # Mapping of team abbreviations to full names
+    TEAM_ABBR_MAP = {
+        "ATL": "Atlanta Hawks",
+        "BOS": "Boston Celtics",
+        "BKN": "Brooklyn Nets",
+        "CHA": "Charlotte Hornets",
+        "CHI": "Chicago Bulls",
+        "CLE": "Cleveland Cavaliers",
+        "DAL": "Dallas Mavericks",
+        "DEN": "Denver Nuggets",
+        "DET": "Detroit Pistons",
+        "GSW": "Golden State Warriors",
+        "HOU": "Houston Rockets",
+        "IND": "Indiana Pacers",
+        "LAC": "Los Angeles Clippers",
+        "LAL": "Los Angeles Lakers",
+        "MEM": "Memphis Grizzlies",
+        "MIA": "Miami Heat",
+        "MIL": "Milwaukee Bucks",
+        "MIN": "Minnesota Timberwolves",
+        "NOP": "New Orleans Pelicans",
+        "NYK": "New York Knicks",
+        "OKC": "Oklahoma City Thunder",
+        "ORL": "Orlando Magic",
+        "PHI": "Philadelphia 76ers",
+        "PHX": "Phoenix Suns",
+        "POR": "Portland Trail Blazers",
+        "SAC": "Sacramento Kings",
+        "SAS": "San Antonio Spurs",
+        "TOR": "Toronto Raptors",
+        "UTA": "Utah Jazz",
+        "WAS": "Washington Wizards",
+    }
+
     def __init__(self) -> None:
         """Initialize the scraper with configuration."""
         self.settings = get_settings()
@@ -60,23 +94,40 @@ class RotoWireScraper:
             logger.debug("Fetching page", url=url)
 
             # Add delay to avoid rate limiting
-            time.sleep(1.5)
+            time.sleep(2)
 
+            # More complete headers to simulate real browser
             headers = {
-                "User-Agent": "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36",
-                "Accept": "text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8",
+                "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36",
+                "Accept": "text/html,application/xhtml+xml,application/xml;q=0.9,image/avif,image/webp,image/apng,*/*;q=0.8",
                 "Accept-Language": "en-US,en;q=0.9",
                 "Accept-Encoding": "gzip, deflate, br",
+                "DNT": "1",
                 "Connection": "keep-alive",
+                "Upgrade-Insecure-Requests": "1",
+                "Sec-Fetch-Dest": "document",
+                "Sec-Fetch-Mode": "navigate",
+                "Sec-Fetch-Site": "none",
+                "Sec-Fetch-User": "?1",
+                "Cache-Control": "max-age=0",
             }
 
-            response = self.session.get(url, headers=headers, timeout=30, allow_redirects=True)
+            # Try with cloudscraper (handles Cloudflare)
+            response = self.session.get(
+                url,
+                headers=headers,
+                timeout=30,
+                allow_redirects=True
+            )
+
+            logger.debug("Response received", status_code=response.status_code, content_length=len(response.text))
+
             response.raise_for_status()
 
             return BeautifulSoup(response.text, "html.parser")
 
         except Exception as e:
-            logger.error("Request failed", url=url, error=str(e))
+            logger.error("Request failed", url=url, error=str(e), error_type=type(e).__name__)
             raise RotoWireScraperError(f"Failed to fetch {url}: {e}")
 
     def import_daily_lineups(self, target_date: Optional[date] = None) -> int:
@@ -118,7 +169,10 @@ class RotoWireScraper:
         lineups_imported = 0
 
         # Find all lineup boxes (game cards)
-        lineup_boxes = lineups_page.find_all("div", class_="lineup")
+        # The class is "lineup is-nba", so we need to search by class containing "lineup"
+        lineup_boxes = lineups_page.find_all("div", class_=lambda x: x and "lineup" in x and "is-nba" in x)
+
+        logger.info("Found lineup boxes", count=len(lineup_boxes))
 
         for box in lineup_boxes:
             try:
@@ -154,131 +208,121 @@ class RotoWireScraper:
         """
         lineups = []
 
-        # Find team sections (away and home)
-        team_sections = box.find_all("div", class_="lineup__main")
+        # Find team abbreviations first
+        team_abbrs = box.find_all("div", class_="lineup__abbr")
+        if len(team_abbrs) != 2:
+            logger.warning("Expected 2 teams, found different number", count=len(team_abbrs))
+            return lineups
 
-        for team_section in team_sections:
-            try:
-                # Get team name
-                team_name_elem = team_section.find("div", class_="lineup__abbr")
-                if not team_name_elem:
-                    continue
+        away_abbr = team_abbrs[0].text.strip()
+        home_abbr = team_abbrs[1].text.strip()
 
-                team_name = team_name_elem.text.strip()
+        # Convert abbreviations to full team names
+        away_team = self.TEAM_ABBR_MAP.get(away_abbr, away_abbr)
+        home_team = self.TEAM_ABBR_MAP.get(home_abbr, home_abbr)
 
-                # Parse starters
-                starters = self._parse_starters(team_section, team_name, scrape_date, game_date)
-                lineups.extend(starters)
+        logger.debug("Parsing lineup", away=away_team, home=home_team)
 
-                # Parse injury list
-                injuries = self._parse_injuries(team_section, team_name, scrape_date, game_date)
-                lineups.extend(injuries)
+        # Find the lineup__main div which contains both team lists
+        lineup_main = box.find("div", class_="lineup__main")
+        if not lineup_main:
+            logger.warning("No lineup__main found")
+            return lineups
 
-            except Exception as e:
-                logger.debug("Failed to parse team section", error=str(e))
-                continue
+        # Find both team lists
+        team_lists = lineup_main.find_all("ul", class_="lineup__list")
+
+        if len(team_lists) < 2:
+            logger.warning("Expected 2 team lists, found different number", count=len(team_lists))
+            return lineups
+
+        # Parse away team (is-visit)
+        away_list = lineup_main.find("ul", class_=lambda x: x and "lineup__list" in x and "is-visit" in x)
+        if away_list:
+            away_lineups = self._parse_team_list(away_list, away_team, scrape_date, game_date)
+            lineups.extend(away_lineups)
+
+        # Parse home team (is-home)
+        home_list = lineup_main.find("ul", class_=lambda x: x and "lineup__list" in x and "is-home" in x)
+        if home_list:
+            home_lineups = self._parse_team_list(home_list, home_team, scrape_date, game_date)
+            lineups.extend(home_lineups)
 
         return lineups
 
-    def _parse_starters(
-        self, team_section: Any, team_name: str, scrape_date: date, game_date: date
+    def _parse_team_list(
+        self, team_list: Any, team_name: str, scrape_date: date, game_date: date
     ) -> List[Dict[str, Any]]:
-        """Parse starting lineup from team section.
+        """Parse a team's lineup list (starters and injuries).
 
         Args:
-            team_section: BeautifulSoup element for team section
-            team_name: Team name
+            team_list: BeautifulSoup element for team's ul.lineup__list
+            team_name: Team abbreviation
             scrape_date: Date when data was scraped
             game_date: Date of the game
 
         Returns:
-            List of starter entries
+            List of lineup entries (starters and injuries)
         """
-        starters = []
+        lineups = []
+        is_parsing_starters = True
+        starter_count = 0
 
-        # Find the starters list
-        starters_div = team_section.find("ul", class_="lineup__list")
-        if not starters_div:
-            return starters
-
-        starter_items = starters_div.find_all("li", class_="lineup__player")
-
-        for item in starter_items[:5]:  # Only first 5 are starters
-            try:
-                player_link = item.find("a")
-                if not player_link:
-                    continue
-
-                player_name = player_link.text.strip()
-
-                # Get position
-                position_elem = item.find("div", class_="lineup__pos")
-                position = position_elem.text.strip() if position_elem else None
-
-                starters.append(
-                    {
-                        "scrape_date": scrape_date,
-                        "game_date": game_date,
-                        "team_name": team_name,
-                        "player_name": player_name,
-                        "position": position,
-                        "status": "Starter",
-                        "injury_description": None,
-                        "notes": None,
-                    }
-                )
-
-            except Exception as e:
-                logger.debug("Failed to parse starter", error=str(e))
+        # Iterate through all list items
+        for item in team_list.find_all("li"):
+            # Check if this is the separator between starters and injuries
+            if "lineup__title" in item.get("class", []):
+                is_parsing_starters = False
                 continue
 
-        return starters
+            # Skip status messages
+            if "lineup__status" in item.get("class", []):
+                continue
 
-    def _parse_injuries(
-        self, team_section: Any, team_name: str, scrape_date: date, game_date: date
-    ) -> List[Dict[str, Any]]:
-        """Parse injury list from team section.
+            # Only process player items
+            if "lineup__player" not in item.get("class", []):
+                continue
 
-        Args:
-            team_section: BeautifulSoup element for team section
-            team_name: Team name
-            scrape_date: Date when data was scraped
-            game_date: Date of the game
-
-        Returns:
-            List of injury entries
-        """
-        injuries = []
-
-        # Find the injury list
-        injury_div = team_section.find("ul", class_="lineup__injuries")
-        if not injury_div:
-            return injuries
-
-        injury_items = injury_div.find_all("li")
-
-        for item in injury_items:
             try:
-                # Get player name
+                # Get player link and name
                 player_link = item.find("a")
                 if not player_link:
                     continue
 
                 player_name = player_link.text.strip()
 
-                # Get injury status (OUT, GTD, Questionable, etc.)
-                status_elem = item.find("span", class_="lineup__inj-status")
-                status = status_elem.text.strip() if status_elem else "Unknown"
-
-                # Get injury description
-                injury_desc_elem = item.find("span", class_="lineup__inj")
-                injury_description = injury_desc_elem.text.strip() if injury_desc_elem else None
-
                 # Get position
                 position_elem = item.find("div", class_="lineup__pos")
                 position = position_elem.text.strip() if position_elem else None
 
-                injuries.append(
+                # Get injury status from span
+                injury_span = item.find("span", class_="lineup__inj")
+                injury_status = injury_span.text.strip() if injury_span else None
+
+                # Determine status
+                if is_parsing_starters and starter_count < 5:
+                    # This is a starter
+                    status = "Starter"
+                    starter_count += 1
+
+                    # Even starters can have injury concerns
+                    if injury_status:
+                        status = injury_status  # Use "Ques", "Out", etc. if present
+                else:
+                    # This is from the injury/questionable list
+                    if injury_status:
+                        status = injury_status
+                    else:
+                        # Check probability class to determine status
+                        classes = " ".join(item.get("class", []))
+                        if "is-pct-play-0" in classes:
+                            status = "OUT"
+                        elif "is-pct-play-50" in classes:
+                            status = "Questionable"
+                        else:
+                            status = "GTD"  # Game-Time Decision
+
+                lineups.append(
                     {
                         "scrape_date": scrape_date,
                         "game_date": game_date,
@@ -286,13 +330,13 @@ class RotoWireScraper:
                         "player_name": player_name,
                         "position": position,
                         "status": status,
-                        "injury_description": injury_description,
+                        "injury_description": injury_status if injury_status and status == "Starter" else None,
                         "notes": None,
                     }
                 )
 
             except Exception as e:
-                logger.debug("Failed to parse injury", error=str(e))
+                logger.debug("Failed to parse player", error=str(e), player=player_name if 'player_name' in locals() else 'unknown')
                 continue
 
-        return injuries
+        return lineups
